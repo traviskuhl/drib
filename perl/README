@@ -1,0 +1,98 @@
+usage: drib [options] command [sub-command] [command-options]
+
+List of Commands:
+ help                Display this message
+ self-install        Install the downloaded version of drib
+ self-update         Update to the latest version of drib
+ install             Install a package from dist
+ create              Create a package
+ set                 Update a package setting
+
+Options:
+ -h, --help         Show this message
+ -v, --version      Version of drib
+
+
+--------------------------------------------------------------- 
+ Self Install
+--------------------------------------------------------------- 
+usage: drib self-install
+
+    sub commands: none
+    
+    options: none
+    
+    
+--------------------------------------------------------------- 
+ Self-Update
+--------------------------------------------------------------- 
+usage: drib self-update [-v version [-b branch]]
+
+    sub commands: 
+        none
+    
+    options:
+        -v,--version=[version]     Version of drib to install from central dist
+        -b,--branch=[branch]       Branch to install from. (version takes precedence)
+        
+    example:
+        drib self-install -b test
+        
+--------------------------------------------------------------- 
+ Install
+--------------------------------------------------------------- 
+usage: drib install <package|package-file> [-v Version [-b branch]]  
+
+    sub commands:
+        package         Name of the package. Can also include
+                        the version or branch after a dash.
+                        ex: package-version or package-branch
+        package-file    Package file (must have been created using drib create)
+                        
+                        
+    options:
+        -v, --version=[version]     Version of the package to install
+        -b, --branch=[branch]       Branch to install from. (version takes precedence)
+                                        
+    example
+        drib install tester -v 0.1.1 -t symlink
+        drib install tester-1.0.tar.gz        
+                                        
+                                        
+--------------------------------------------------------------- 
+ Create
+--------------------------------------------------------------- 
+usage: drib create <package-manifest> [--no-dist [-b branch [-i install [-t type]]]]
+
+    sub commands:
+        package-manifest       Path to the package manifest file
+        
+    options
+        --no-dist                   Do not send package to dist, save in pwd
+        -b, --branch=[branch]       Branch to install the package version to
+        -i, --install               After package is created, install locally
+        -t, --type=[type]           Build type:
+                                        release = does a normal install (default)
+                                        test = test package with unique version
+                                        symlink = symlinks all files 
+        
+    example:
+        drib create test.pkg -b test
+        
+
+--------------------------------------------------------------- 
+ Set
+---------------------------------------------------------------
+usage: drib set <package> <name>=<value>
+
+    sub commands
+        package             Name of package to update setting
+        name                Name of setting to update
+        value               Value to assign
+        
+    options
+        none
+        
+    example
+        drib set test port=85
+        

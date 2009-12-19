@@ -1,0 +1,147 @@
+#
+# Manifest Settings 
+################################
+# define any internal settings
+# or variables that you would 
+# like to use within the manifest
+#
+	
+	$src = "./";
+	$dest = "/home/test";
+
+
+#
+# Package Metadata
+################################
+# general metadata that describes
+# the package. all required
+#
+	
+	$Meta = {
+	
+		# name 
+		'name' => "test",
+		
+		# version
+		'version' => "1.0.5",
+		
+		# summary
+		'summary' => "This is a test packge",
+		
+		# description
+		'description' => "This is a description of the package",
+		
+		# changelog file
+		'changelog' => "$src/changelog",
+	
+	};
+
+
+#
+# Settings variables
+################################
+# set any environment variables
+# that are available in all requests
+#
+
+	$Set = {
+		'test' => 'hello there',
+		'hello' => 'world',
+		'port' => "80"
+	};
+
+
+#
+# Directories
+################################
+# use this to create any directories
+#
+
+	$Dirs = [
+		"$dest"
+	];
+
+
+#
+# Files
+################################
+# move files from the src 
+# into the destinations
+#
+# format:
+#   ['dest','src']
+#   ['dest',{"find" => "find expression"}]
+#   ['dest', {"find" => "find expression", 'user' => '', 'group' => '', 'mode' => '' }]
+#
+# examples:
+#   ['/www/share/text.html','./test.html']
+#   ['/www/share/',{ 'src' => './ -name "*.html"' }]
+#
+
+	$Files = [
+	
+		# move the test files from 
+		# src to dest
+		[$dest,{'find'=>'./ -depth -name "*.html"','root' => './'}],
+	
+	];
+	
+	
+#
+# Apache Config
+################################
+# apache configuration file
+#
+
+	# Apache
+	$Apache = {
+	       
+        # directory to put the conf file in 
+        'file' => "/home/drib/conf/test.conf",
+	
+        # template for the apache conf file    
+        "tmpl" => "
+            Listen $(port)
+            NameVirtualHost *:$(port)
+            
+            <VirtualHost *:$(port)>
+            
+                $(Settings)
+            
+            	# servername
+            	ServerName  drib.it
+            	ServerAlias www.drib.it
+            	DocumentRoot /home/drib/htdocs/fe
+            
+            	# director
+            	<Directory /home/drib/htdocs/fe>
+            			
+            		RewriteEngine On            
+            
+            	</Directory>
+            	
+            </VirtualHost>                            
+        "
+	
+	};
+
+	
+#
+# Commands
+################################
+# commands to run pre and post 
+# install
+#
+
+    # commands
+    $Commands = {
+        'pre-install' => [
+            'echo "pre"'
+        ],
+        'post-install' => [
+            'echo "post"'
+        ]
+    };
+	
+	
+return 1;
