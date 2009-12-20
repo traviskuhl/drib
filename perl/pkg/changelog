@@ -1,1 +1,13 @@
+Version 0.0.3
+* implemented set
+* implemented list
+* fixed local package db
+* fixed local settings db
+* added better subcommand help
+
+Version 0.0.2
+* install now works
+* create now works
+
 Version 0.0.1
+* inital build

@@ -11,8 +11,9 @@ my $tmp = "";
 
 ## Meta
 $Meta = {
+    'project'       => 'drib',
     'name'          => 'drib',
-    'version'       => '0.0.1',
+    'version'       => '0.0.3',
     'summary'       => "drib distribution",
     'description'   => "Cross platform application distribution",
     'changelog'     => "changelog"

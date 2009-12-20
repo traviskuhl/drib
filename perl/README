@@ -83,7 +83,7 @@ usage: drib create <package-manifest> [--no-dist [-b branch [-i install [-t type
 --------------------------------------------------------------- 
  Set
 ---------------------------------------------------------------
-usage: drib set <package> <name>=<value>
+usage: drib set <package> <name>=<value>...
 
     sub commands
         package             Name of package to update setting
