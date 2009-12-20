@@ -32,12 +32,31 @@ sub new {
 	return $self;
 
 }
+
+sub all {
+    my ($self,$ns) = @_;
+
+    # no namespace
+    unless ( $ns ) { 
+        $ns = "default";
+    }
+    
+    # return all 
+    return $self->{content}->{$ns};
+
+}
+
 sub get {
 
-	my ($self,$var) = @_;
+	my ($self,$var,$ns) = @_;
 
-	if ( exists $self->{content}->{$var} )  {
-		return $self->{content}->{$var};
+    # no namespace
+    unless ( $ns ) { 
+        $ns = "default";
+    }    
+
+	if ( exists $self->{content}->{$ns}->{$var} )  {
+		return $self->{content}->{$ns}->{$var};
 	}
 	else {
 		return 0;
@@ -47,13 +66,53 @@ sub get {
 
 sub set {
 
-	my ($self,$var,$val) = @_;
+	my ($self,$var,$val,$ns) = @_;
+
+    # no namespace
+    unless ( $ns ) { 
+        $ns = "default";
+    }    
+    
+    # does it exist
+    unless ( exists $self->{content}->{$ns} ) {
+        $self->{content}->{$ns} = {};
+    }
 
 	# set
-	return $self->{content}->{$var} = $val;
+    return $self->{content}->{$ns}->{$var} = $val;
 
 }
 
+sub add {
+
+    my ($self,$var,$val,$ns) = @_;
+    
+    # no namespace
+    unless ( $ns ) { 
+        $ns = "default";
+    }        
+    
+    # eixst
+    unless ( exists $self->{content}->{$ns} ) {
+        $self->{content}->{$ns} = {};
+    }
+
+    # default
+    unless ( exists $self->{content}->{$ns}->{$val} ) {
+        $self->{content}->{$ns}->{$val} = ();
+    }    
+    
+    my @a = @{$self->{content}->{$ns}->{$var}};
+    
+    # push me on
+    unless ( in_array(\@a,$val)) {
+        push(@a,$val);
+    }
+    
+    # save it 
+    $self->{content}->{$ns}->{$var} = \@a;
+
+}
 
 sub load {
 	
@@ -82,10 +141,14 @@ sub save {
 	}
 
 	# open the file
-	$file = $self->{var}.'/'.$self->{db};
+	$file = $self->{var}.'/'.$self->{db}.'.json';
 
-	file_put($file,$content);
+    # save
+	open(_FH,">".$file);
+	print _FH to_json($content);
+	close(_FH);
 
 }
+
 
 

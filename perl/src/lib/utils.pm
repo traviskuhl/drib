@@ -14,6 +14,7 @@ our @EXPORT = qw(
 	verbose
 	rand_str
 	force_root
+	in_array
 );
 
 sub trim {
@@ -81,4 +82,12 @@ sub force_root {
         fail("Must run install commands as 'root'.");
     }
 
+}
+
+sub in_array {
+    my ($arr,$search_for) = @_;
+    foreach my $value (@$arr) {
+        return 1 if $value eq $search_for;
+    }
+    return 0;
 }
