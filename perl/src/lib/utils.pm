@@ -19,7 +19,11 @@ our @EXPORT = qw(
 
 sub trim {
 	my $string = shift;
-	$string =~ s/\/$//;
+	my $both = shift || 0;
+	if ( $both  ) {
+    	$string =~ s/^\///;
+    }
+    $string =~ s/\/$//;
 	return $string;	
 }
 

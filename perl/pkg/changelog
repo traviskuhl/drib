@@ -1,3 +1,10 @@
+Version 0.0.4
+* added list of files to create manifest
+* added both options to utils::trim
+* drib::dist::remote now correctly integrated with drib api
+* cleaned up self-intall
+* added exteranl project mapper for yum, pear & pecl
+
 Version 0.0.3
 * implemented set
 * implemented list
