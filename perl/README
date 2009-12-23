@@ -7,6 +7,7 @@ List of Commands:
  install             Install a package from dist
  create              Create a package
  set                 Update a package setting
+ list                Show a list of installed packages
 
 Options:
  -h, --help         Show this message
@@ -55,7 +56,7 @@ usage: drib install <package|package-file> [-v Version [-b branch]]
         -b, --branch=[branch]       Branch to install from. (version takes precedence)
                                         
     example
-        drib install tester -v 0.1.1 -t symlink
+        drib install tester -v 0.1.1
         drib install tester-1.0.tar.gz        
                                         
                                         
@@ -73,17 +74,18 @@ usage: drib create <package-manifest> [--no-dist [-b branch [-i install [-t type
         -i, --install               After package is created, install locally
         -t, --type=[type]           Build type:
                                         release = does a normal install (default)
-                                        test = test package with unique version
+                                        beta = beta package with unique version
+                                        nightly = nightly package with unique version
                                         symlink = symlinks all files 
         
     example:
-        drib create test.pkg -b test
+        drib create test.pkg -b nightly
         
 
 --------------------------------------------------------------- 
  Set
 ---------------------------------------------------------------
-usage: drib set <package> <name>=<value>...
+usage: drib set <package> <name>=<value> [... [--no-files]]
 
     sub commands
         package             Name of package to update setting
@@ -91,8 +93,21 @@ usage: drib set <package> <name>=<value>...
         value               Value to assign
         
     options
-        none
+        --no-files          Do not update any settings files
         
     example
-        drib set test port=85
+        drib set test port=85 hello=world
         
+--------------------------------------------------------------- 
+ List
+---------------------------------------------------------------        
+useage: drib list [-p project]
+
+    sub commands 
+        none
+        
+    options
+        -p, --project       Show only list of packages for given project
+        
+    example
+        drib list

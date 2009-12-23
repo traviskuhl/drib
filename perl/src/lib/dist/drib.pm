@@ -1,4 +1,4 @@
-package drib::dist::remote;
+package drib::dist::drib;
 
 # what we need
 use HTTP::Request;

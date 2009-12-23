@@ -83,7 +83,7 @@
 		# move the test files from 
 		# src to dest
 		[$dest,{'find'=>'./ -depth -name "*.html"','root' => './'}],
-	
+        [$dest,{'src' => './test.conf', 'settings' => 'true' }]
 	];
 	
 	

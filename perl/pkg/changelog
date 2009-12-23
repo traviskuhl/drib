@@ -1,3 +1,11 @@
+Version 0.0.5
+* updated README
+* changed dist::remote to dist::drib
+* removed bin/drib from packge file. &self_install now writes directly
+* added settings file
+* implemented settings file update on set command
+* add --no-file option to set command
+
 Version 0.0.4
 * added list of files to create manifest
 * added both options to utils::trim

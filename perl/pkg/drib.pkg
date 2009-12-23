@@ -30,7 +30,6 @@ $Dirs = [
 
 ## Files
 $Files = [
-    ["$bin",            {"src"=>"$src/drib","mode"=>755}],
     ["$lib/drib",       {"find"=>$src.'/lib -name "*.pm"'}],
     ["$lib/drib/dist",  {"find"=>$src.'/lib/dist -name "*.pm"'}]   
 ];

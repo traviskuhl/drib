@@ -10,7 +10,7 @@
 package drib;
 
 # version
-my $VERSION = "0.0.4";
+my $VERSION = "0.0.5";
 
 # use packages
 use Getopt::Long;
@@ -29,7 +29,7 @@ use lib LIB;
 
 # drib packages
 use dist::local;
-use dist::remote;
+use dist::drib;
 use utils;
 use external;
 use db;
@@ -109,7 +109,9 @@ my $Commands = {
     'set' => {
         'func' => \&set,
         'help' => "Set package variables",
-        'opts' => {}
+        'opts' => {
+            'files' => 'files!'
+        }
     },
     
     # list installed packages
@@ -134,10 +136,10 @@ my $SETTINGS = 0;
 unless ( $act eq 'self-install' ) {
 	
 	# set some thigns
-    $CONFIG = new drib::db('config',VAR);	
-    $DIST = new drib::dist::remote($CONFIG);
-    $PACKAGES = new drib::db('packges',VAR);
-	$SETTINGS = new drib::db('settings',VAR);
+    $CONFIG     = new drib::db('config',VAR);	
+    $DIST       = new drib::dist::drib($CONFIG);
+    $PACKAGES   = new drib::db('packges',VAR);
+	$SETTINGS   = new drib::db('settings',VAR);
     	
     # if not running as root
     if ( $> != 0 ) {
@@ -153,6 +155,14 @@ unless ( $act eq 'self-install' ) {
 	
 }
 
+# get options
+my %options = ();
+
+    # opts
+    my $opts = $Commands->{$act}->{opts};
+    
+    # get options
+    GetOptions(\%options, values %{$opts}); 
 
 # cmds 
 my @cmds = @ARGV; shift @cmds;
@@ -165,16 +175,7 @@ if ( exists $Alias{$act} ) {
 # is the given command correct
 unless ( exists $Commands->{$act} ) {
     $act = 'help';
-}
-
-# get options
-my %options = ();
-
-    # opts
-    my $opts = $Commands->{$act}->{opts};
-    
-    # get options
-    GetOptions(\%options, values %{$opts});    
+}   
 
 # call it 
 $Commands->{$act}->{func}();
@@ -306,7 +307,7 @@ sub self_install {
 	$file =~ s/LIB =\> "\.\/lib"/LIB => "$conf->{'libf'}\/drib"/;
 
 	# put the content back
-	file_put("./drib",$file);	
+	file_put(trim($conf->{'binf'})."/drib",$file);	
 
     # files
     $conf->{'libf'} .= "/drib";
@@ -482,6 +483,9 @@ sub install {
 		}
 	}
 
+    # perform set file updates
+    _write_settings_files($manifest->{set_files},$manifest->{set});
+
     # make a pid
     my $pid = md5_hex($manifest->{project}."-".$manifest->{meta}->{name});
     
@@ -497,6 +501,7 @@ sub install {
 
     # any settings
     $SETTINGS->set($pid,$manifest->{set});
+    $SETTINGS->set($pid,$manifest->{set_files},'files');
 
     # cleanup our tmp dir
     `rm -r $tdir`;    
@@ -600,8 +605,23 @@ sub create {
     if ( $type eq "symlink" || $type eq "s" ) {
         $version = "$version.S".time();
     }
-    elsif ( $type eq "test" || $type eq "t" ) {
-        $version = "$version.T".time();
+    elsif ( $type eq "beta" || $type eq "t" ) {
+    
+        # version
+        $version = "$version.B".time();
+        
+        # branch
+        $branch = "beta";
+        
+    }
+    elsif ( $type eq "nightly" || $type eq 't' ) {
+    
+        # version
+        $version = "$version.N".time();    
+        
+        # bracnh
+        $branch = "nightly";
+        
     }
 
 	# unless config tells us no dist we want
@@ -636,6 +656,9 @@ sub create {
 			push(@listing,$d);
 		}
 	}
+	
+	# setting files
+	my @SettingFiles = ();
 	
 	# no files
 	if ( $Files != 0 ) {
@@ -701,7 +724,14 @@ sub create {
                         }
 					
                         # push ontop
-						push(@files,{'src'=>$item,'user'=>$file->{user},'group'=>$file->{group},'mode'=>$file->{mode},'append'=>$append});
+						push(@files,{
+                            'src'=>$item,
+                            'user'=>$file->{user},
+                            'group'=>$file->{group},
+                            'mode'=>$file->{mode},
+                            'append'=>$append,
+                            'settings' => $file->{settings}
+                        });
 						
 					}
 					
@@ -737,7 +767,19 @@ sub create {
 				
 				# push
 				push(@listing,$_d);
-	
+				
+				# settings
+                if ( defined $item->{settings} && $item->{settings} eq 'true' ) {
+                
+                    # dest file
+                    my $sfd = $_d;
+                       $sfd =~ s/$tdir//g;
+                       
+                    # push it 
+                    push(@SettingFiles,{'file' => $sfd, 'tmpl' => file_get($item->{src}) });
+                    
+                }
+                
                 # now see what type of build we have
                 if ( $type eq 'symlink' || $type eq 's' ) {
                     my $_s = $pwd . "/" . $item->{src};
@@ -781,6 +823,7 @@ sub create {
 		'type' => $type,	
 		'meta' => $Meta,
 		'set' => $Set,
+		'set_files' => \@SettingFiles,
 		'commands' => $Commands,
 		'apache' => $Apache,
 		'raw' => $man,
@@ -851,158 +894,197 @@ sub create {
     	
     }
 
-    # set env vars
-    sub set {
+}
 
-        # packages
-    	my $packages = $PACKAGES->all();    
+# set env vars
+sub set {
 
-    	# no subcommand we assume to show all packages
-    	if ( $#cmds == -1 ) { 
-    	
-            # get all settings
-            my $settings = $SETTINGS->all();
-    	
-            # print them
-            foreach my $pid ( keys %{$packages} ) {
-                
-                # settings
-                my $s = $settings->{$pid};
-                
-                # loop and show
-                foreach my $key ( keys %{$s} ) {
-                    msg(" $packages->{$pid}->{meta}->{name}.$key: $s->{$key} ");
-                }
-                
-            }
-    	
-            # done
-            exit();
-    	
-        }
-    	
-    	# map
-    	my @map = @{$PACKAGES->get($cmds[0],'map')};
-    	
-    	# package
-    	my $package = 0;
-    	my $pid = 0;
-    	
-        # how many
-        if ( $#map == -1 ) {
-            fail("Package {$cmds[0]} is not installed");
-        }
-        
-        # more than one
-        if ( $#map != 0 ) {
-        
-            # msg
-            msg("There are more than one packages named {$cmds[0]}. Pick the one you want:");
+    # packages
+	my $packages = $PACKAGES->all();    
+
+	# no subcommand we assume to show all packages
+	if ( $#cmds == -1 ) { 
+	
+        # get all settings
+        my $settings = $SETTINGS->all();
+	
+        # print them
+        foreach my $pid ( keys %{$packages} ) {
             
-            # counter to match options
-            my $i = 0;
-            
-            # options
-            foreach my $pid ( @map ) {
-                $pkg = $packages->{$pid};
-                if ( $pkg ) {
-                    msg(" [$i] $pkg->{project}/$pkg->{meta}->{name}");
-                }
-            }
-    
-            # pick            
-    		$pick = <>;
-    		chomp $pick;
-    		
-    		# package
-    		$pid = $map[$pick];
-            
-        }
-        else {
-            $pid = $map[0];
-        }
-        
-        # package
-        $package = $packages->{$pid};
-    
-        # no package
-        unless ( $package ) {
-            fail("Could not find the package you requested.");
-        }
-        
-        # settings
-        my $settings = $SETTINGS->get($pid);
-            
-        # if no options we need to just show all the settings
-        if ( $#cmds == 0 ) {
-            
-            # msg
-            msg("Settings for $package->{meta}->{name}");
+            # settings
+            my $s = $settings->{$pid};
             
             # loop and show
-            foreach my $key ( keys %{$settings} ) {
-                msg(" $key: $settings->{$key}");
+            foreach my $key ( keys %{$s} ) {
+                msg(" $packages->{$pid}->{meta}->{name}.$key: $s->{$key} ");
             }
             
         }
+	
+        # done
+        exit();
+	
+    }
+	
+	# map
+	my @map = @{$PACKAGES->get($cmds[0],'map')};
+	
+	# package
+	my $package = 0;
+	my $pid = 0;
+	
+    # how many
+    if ( $#map == -1 ) {
+        fail("Package {$cmds[0]} is not installed");
+    }
+    
+    # more than one
+    if ( $#map != 0 ) {
+    
+        # msg
+        msg("There are more than one packages named {$cmds[0]}. Pick the one you want:");
         
-        # set a settings
-        else {
+        # counter to match options
+        my $i = 0;
         
-            # shift off package
-            shift @cmds;
-            
-            # foreach of these do a set
-            foreach my $c ( @cmds ) {
-            
-                # split on =
-                ($key,$val) = split(/=/,$c);
-                
-                # reset
-                $settings->{$key} = $val;
-                
-                # tell them what we changed
-                msg("$package->{meta}->{name}.$key: $val");
-                
+        # options
+        foreach my $pid ( @map ) {
+            $pkg = $packages->{$pid};
+            if ( $pkg ) {
+                msg(" [$i] $pkg->{project}/$pkg->{meta}->{name}");
             }
+        }
+
+        # pick            
+		$pick = <>;
+		chomp $pick;
+		
+		# package
+		$pid = $map[$pick];
         
+    }
+    else {
+        $pid = $map[0];
+    }
+    
+    # package
+    $package = $packages->{$pid};
+
+    # no package
+    unless ( $package ) {
+        fail("Could not find the package you requested.");
+    }
+    
+    # settings
+    my $settings = $SETTINGS->get($pid);
+        
+    # if no options we need to just show all the settings
+    if ( $#cmds == 0 ) {
+        
+        # msg
+        msg("Settings for $package->{meta}->{name}");
+        
+        # loop and show
+        foreach my $key ( keys %{$settings} ) {
+            msg(" $key: $settings->{$key}");
+        }
+        
+    }
+    
+    # set a settings
+    else {
+    
+        # shift off package
+        shift @cmds;
+        
+        # foreach of these do a set
+        foreach my $c ( @cmds ) {
+        
+            # split on =
+            ($key,$val) = split(/=/,$c);
+            
+            # reset
+            $settings->{$key} = $val;
+            
+            # tell them what we changed
+            msg("$package->{meta}->{name}.$key: $val");
+            
+        }
+        
+        # unless they tell us no
+        if ( $options{'files'} eq undef || $options{'files'} != 0 ) { 
+                    
+            # update the files
+            my $files = $SETTINGS->get($pid,'files');
+                
+            # update each settings file
+            _write_settings_files($files,$settings);
+            
         }
     
     }
 
-    # list
-    sub list {
+}
+
+# list
+sub list {
+    
+    # project
+    my $project = $options{'project'} || 'all'; 
         
-        # project
-        my $project = $options{'project'} || 'all'; 
-            
-        # get a list of packages
-        my $packages = $PACKAGES->all('default');
+    # get a list of packages
+    my $packages = $PACKAGES->all('default');
+    
+    # array
+    my @a = ();
+    
+    # loop
+    foreach my $pid ( keys %{$packages} ) {
+    
+        # get the package            
+        my $p = $packages->{$pid};        
         
-        # array
-        my @a = ();
-        
-        # loop
-        foreach my $pid ( keys %{$packages} ) {
-        
-            # get the package            
-            my $p = $packages->{$pid};        
-            
-            # if !project or $project = $pkg project
-            if ( $project eq 'all' || $project eq $p->{project} ) {
-                push (@a,$p);
-            }
-        
+        # if !project or $project = $pkg project
+        if ( $project eq 'all' || $project eq $p->{project} ) {
+            push (@a,$p);
         }
-                
-        # print it 
-        msg("Total of ".($#a+1)." Packages installed.");        
-                
-        # print them
-        foreach my $pkg ( @a ) {
-            msg(" $pkg->{project}/$pkg->{meta}->{name}-$pkg->{meta}->{version}");            
+    
+    }
+            
+    # print it 
+    msg("Total of ".($#a+1)." Packages installed.");        
+            
+    # print them
+    foreach my $pkg ( @a ) {
+        msg(" $pkg->{project}/$pkg->{meta}->{name}-$pkg->{meta}->{version}");            
+    }
+    
+}
+
+# _write_settings_files
+sub _write_settings_files {
+    
+    # what 
+    my $files = shift;
+    my $settings = shift;
+
+    # open each file
+    foreach my $item ( @{$files} ) {
+            
+        # file
+        my $file = $item->{file};
+        
+        # content            
+        my $content =  $item->{tmpl};
+    
+        # loop through each setting
+        foreach my $key ( keys %{$settings} ) {
+            $content =~ s/\$\($key\)/$settings->{$key}/g;
         }
         
+        # write back the file
+        file_put($file,$content);
+    
     }
 
 }
