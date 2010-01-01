@@ -83,6 +83,23 @@ sub set {
 
 }
 
+
+sub unset {
+
+    # get stuff
+    my ($self,$key,$ns) = @_;
+
+    # no namespace
+    unless ( $ns ) { 
+        $ns = "default";
+    }    
+
+    # delete it
+    delete $self->{content}->{$ns}->{$key};
+    
+}
+
+
 sub add {
 
     my ($self,$var,$val,$ns) = @_;
@@ -149,6 +166,4 @@ sub save {
 	close(_FH);
 
 }
-
-
 

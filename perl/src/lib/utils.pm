@@ -15,6 +15,9 @@ our @EXPORT = qw(
 	rand_str
 	force_root
 	in_array
+	plural
+	ask
+	versioncmp
 );
 
 sub trim {
@@ -95,3 +98,75 @@ sub in_array {
     }
     return 0;
 }
+
+sub plural {
+    my ($str,$len) = @_;
+    $len++;
+    
+    return $str if ($len==1);
+    
+    if ( substr($str,-1) eq 'y' ) {
+        return substr($str,-1). 'ies';
+    }
+    else {
+        return $str . 's';
+    }
+}
+
+sub ask {
+
+    # whas the question
+    my $q = shift;
+    
+    # ask it
+    print $q;
+    
+    # wait for an answer
+    my $a = <STDIN>; chomp $a;
+    
+    # give it back
+    return $a;
+    
+}
+
+
+# --- copied from: Sort::Versions    ---
+# --- below copyright applies to END ---
+#  Copyright (c) 1996, Kenneth J. Albanowski. All rights reserved.  This
+#  program is free software; you can redistribute it and/or modify it under
+#  the same terms as Perl itself.
+sub versioncmp {
+    my @A = ($_[0] =~ /([-.]|\d+|[^-.\d]+)/g);
+    my @B = ($_[1] =~ /([-.]|\d+|[^-.\d]+)/g);
+
+    my ($A, $B);
+    while (@A and @B) {
+	$A = shift @A;
+	$B = shift @B;
+	if ($A eq '-' and $B eq '-') {
+	    next;
+	} elsif ( $A eq '-' ) {
+	    return -1;
+	} elsif ( $B eq '-') {
+	    return 1;
+	} elsif ($A eq '.' and $B eq '.') {
+	    next;
+	} elsif ( $A eq '.' ) {
+	    return -1;
+	} elsif ( $B eq '.' ) {
+	    return 1;
+	} elsif ($A =~ /^\d+$/ and $B =~ /^\d+$/) {
+	    if ($A =~ /^0/ || $B =~ /^0/) {
+		return $A cmp $B if $A cmp $B;
+	    } else {
+		return $A <=> $B if $A <=> $B;
+	    }
+	} else {
+	    $A = uc $A;
+	    $B = uc $B;
+	    return $A cmp $B if $A cmp $B;
+	}	
+    }
+    @A <=> @B;
+}
+# --- END ---

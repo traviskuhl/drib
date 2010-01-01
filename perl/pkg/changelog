@@ -1,3 +1,10 @@
+Version 0.0.6
+* added `remove` command
+* added var director to default install
+* added `unset` command
+* added same flag to install
+* added downgrade flag to install
+
 Version 0.0.5
 * updated README
 * changed dist::remote to dist::drib

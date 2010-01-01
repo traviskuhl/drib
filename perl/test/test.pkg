@@ -23,7 +23,7 @@
 		'name' => "test",
 		
 		# version
-		'version' => "1.0.5",
+		'version' => "1.0.6",
 		
 		# summary
 		'summary' => "This is a test packge",

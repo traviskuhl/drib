@@ -49,7 +49,7 @@ sub check {
     });
     
     # what 
-    return ($resp?1:0);
+    return ($resp?$resp->{package}->{version}:0);
 
 }
 
@@ -126,7 +126,7 @@ sub _request {
     $req->header('x-drib-sig'=>$sig);
     
     # accept
-    $req->header('accept'=>$args->{'accept'});
+    $req->header('accept'=>$accept);
     
     # content 
     if ( $args->{content} ) {
@@ -149,13 +149,13 @@ sub _request {
     if ($res->is_success && $res->code == 200) {
 
         # javascript
-        if ( $args->{'accept'} eq 'text/javascript' ) {
+        if ( $accept eq 'text/javascript' ) {
         
             # parse the json
             my $json = from_json($res->content);
     
             # reutrn
-            return ($json?$json:0);
+            return ($json?$json->{results}:0);
         
         }
         else {
