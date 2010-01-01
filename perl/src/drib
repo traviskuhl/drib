@@ -26,8 +26,8 @@ use Digest::MD5 qw(md5_hex);
 #no warnings qw(io);
 
 # where our var folder is
-use constant VAR => "/usr/local/var/drib/";
-use constant LIB => "/usr/local/lib/drib/";
+use constant VAR => "./var";
+use constant LIB => "./lib";
 
 # load our config
 use lib LIB;
