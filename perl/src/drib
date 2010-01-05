@@ -26,8 +26,8 @@ use Digest::MD5 qw(md5_hex);
 #no warnings qw(io);
 
 # where our var folder is
-use constant VAR => "/usr/local/var/drib";
-use constant LIB => "/usr/local/lib/drib";
+use constant VAR => "./var";
+use constant LIB => "./lib";
 
 # load our config
 use lib LIB;
@@ -509,6 +509,9 @@ sub install {
 	# open our manifest
 	my $manifest = from_json( file_get($tdir.'/.manifest') );
 	
+	# run pre-install commands
+	_exec_commands($manifest,'pre-install');
+	
 	# now lets get a list of all directories
 	# and move them into place
 	opendir(my $dh, '.');
@@ -546,6 +549,9 @@ sub install {
 
     # cleanup our tmp dir
     `sudo rm -r $tdir`;    
+    
+	# run pre-install commands
+	_exec_commands($manifest,'post-install');    
 	
 	# tell them we're done
 	fail("Package $manifest->{meta}->{name} installed!");
@@ -776,7 +782,48 @@ sub create {
 						
 					}
 					
-				}					
+				}
+				elsif ( defined $file->{'glob'} ) {
+				
+				    # glob it up
+				    my @r = glob $file->{'glob'};				    
+					my $root = "";
+					
+					# root 
+					if ( defined $file->{root} ) {
+					   $root = trim($file->{root});
+					}
+										
+					# each file
+					foreach my $item ( @r ) {
+					   
+                        # parse the file path
+                        my ($fname,$fpath) = fileparse($item);
+                        
+                        # append
+                        $append = "";
+                        
+                        # if path does not eq root
+                        # we need to append the subdir to the 
+                        # final dest also
+                        if ( $root ne "" && trim($fpath) ne $root ) {
+                            $fpath =~ s/$root//;
+                            $append = $fpath;
+                        }
+					
+                        # push ontop
+						push(@files,{
+                            'src'=>$item,
+                            'user'=>$file->{user},
+                            'group'=>$file->{group},
+                            'mode'=>$file->{mode},
+                            'append'=>$append,
+                            'settings' => $file->{settings}
+                        });
+						
+					}				    
+				
+				}
 			
 			}
 			
@@ -1317,3 +1364,26 @@ sub _write_settings_files {
 
 }
 
+# _exec_commands
+sub _exec_commands {
+
+    # get them
+    my $manifest = shift;
+    my $type = shift;
+
+    # see if commands exists
+    if ( exists $manifest->{commands} ) {
+    
+        # does this type of command exist
+        if ( exists $manifest->{commands}->{$type} ) {
+            
+            # loop through and execute
+            foreach my $c ( @{$manifest->{commands}->{$type}} ) {
+                print `$c`;
+            }
+        
+        }
+    
+    }
+
+}

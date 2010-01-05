@@ -72,6 +72,7 @@
 #   ['dest','src']
 #   ['dest',{"find" => "find expression"}]
 #   ['dest', {"find" => "find expression", 'user' => '', 'group' => '', 'mode' => '' }]
+# 
 #
 # examples:
 #   ['/www/share/text.html','./test.html']
@@ -82,49 +83,13 @@
 	
 		# move the test files from 
 		# src to dest
-		[$dest,{'find'=>'./ -depth -name "*.html"','root' => './'}],
+#		[$dest,{'find'=>'./ -depth -name "*.html"','root' => './'}],
+
+        [$dest,{'glob' => './*.html' }],
+        
         [$dest,{'src' => './test.conf', 'settings' => 'true' }]
 	];
 	
-	
-#
-# Apache Config
-################################
-# apache configuration file
-#
-
-	# Apache
-	$Apache = {
-	       
-        # directory to put the conf file in 
-        'file' => "/home/drib/conf/test.conf",
-	
-        # template for the apache conf file    
-        "tmpl" => "
-            Listen $(port)
-            NameVirtualHost *:$(port)
-            
-            <VirtualHost *:$(port)>
-            
-                $(Settings)
-            
-            	# servername
-            	ServerName  drib.it
-            	ServerAlias www.drib.it
-            	DocumentRoot /home/drib/htdocs/fe
-            
-            	# director
-            	<Directory /home/drib/htdocs/fe>
-            			
-            		RewriteEngine On            
-            
-            	</Directory>
-            	
-            </VirtualHost>                            
-        "
-	
-	};
-
 	
 #
 # Commands
@@ -136,10 +101,10 @@
     # commands
     $Commands = {
         'pre-install' => [
-            'echo "pre"'
+            'ls'
         ],
         'post-install' => [
-            'echo "post"'
+            'ls'
         ]
     };
 	
