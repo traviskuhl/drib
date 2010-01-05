@@ -1,0 +1,25 @@
+.TH DRIB 1 LOCAL
+.SH NAME
+drib - open source packaging and distribution script built for web developers
+.SH SYNOPSIS
+.B drib [options]
+.I sub-command [options]
+.SH DESCRIPTION 
+drib allows you to distribute (install) your code more effectively by providing a packaging and central distribution repository.
+.SH OPTIONS
+
+.IP "help - display help documentation"
+.IP "self-install - install drib"
+.TP 10
+ --type
+.TP 
+type of package to create
+.IP "install - install a package"
+.IP "create - create a package"
+.IP "remove - remove a package"
+.IP "set - set a package variable"
+.IP "unset - unset a package variable"
+.IP "list - list installed packages"
+
+.SH AUTHOR
+Travis Kuhl (c) 2010

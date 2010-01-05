@@ -10,7 +10,7 @@
 package drib;
 
 # version
-my $VERSION = "0.0.6";
+my $VERSION = "0.0.7";
 
 # use packages
 use Getopt::Long;
@@ -26,8 +26,8 @@ use Digest::MD5 qw(md5_hex);
 #no warnings qw(io);
 
 # where our var folder is
-use constant VAR => "./var";
-use constant LIB => "./lib";
+use constant VAR => "/usr/local/var/drib";
+use constant LIB => "/usr/local/lib/drib";
 
 # load our config
 use lib LIB;
@@ -51,7 +51,13 @@ if ( $#ARGV != -1 ) {
 }
 
 # aliases
-my %Alias = ('ls'=>'list','h'=>'help','i'=>'install','c'=>'create','rm'=>'remove');
+my %Alias = (   
+    'ls'=>'list',
+    'h'=>'help',
+    'i'=>'install', 'in' => 'install', 'inst' => 'install',
+    'c'=>'create',
+    'rm'=>'remove', 'r' => 'remove'
+);
 
 # what are the avail commands
 my $Commands = {
@@ -73,6 +79,13 @@ my $Commands = {
             'type'=>'type|t=s',
 	   }        
     },
+        
+    # !config 
+    'config' => {
+        'func' => \&config,
+        'help' => "View or update drib configuration settings",
+        'opts' => {}
+    },    
     
     # !install
 	'install' => {
@@ -138,7 +151,7 @@ my $Commands = {
             'yes' => 'yes|y',
             'unset' => 'unset|u',
         }
-    },    
+    }
 	
 };
 
@@ -354,6 +367,37 @@ sub self_install {
     # remove some stuff
     `sudo rm ../pkg/drib.pkg.tmp`;
     
+}
+
+# config
+sub config {
+
+    # if no commands they must want to view the corrent setings
+    if ( $#cmds == -1 ) {
+    
+        # all
+        my $config = $CONFIG->all();
+    
+        # loop through and print them
+        foreach my $c ( keys %{$config} ) {
+            msg(" $c: $config->{$c} ");
+        }
+    
+    }
+    else {
+    
+        # for each of them set the config
+        foreach my $c ( @cmds ) {
+            my($key,$val) = split(/\=/,$c);
+            $CONFIG->set($key,$val);
+            msg("set $key: $val");
+        }
+        
+        # message
+        fail("Configuration Updated");
+        
+    }
+
 }
 
 

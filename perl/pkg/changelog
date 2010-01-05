@@ -1,3 +1,6 @@
+Version 0.0.7
+* added `config` command to update drib config settings 
+
 Version 0.0.6
 * added `remove` command
 * added var director to default install
