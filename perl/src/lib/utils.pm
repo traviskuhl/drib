@@ -117,12 +117,21 @@ sub ask {
 
     # whas the question
     my $q = shift;
+    my $p = shift;
     
     # ask it
-    print $q;
+    print $q . " ";
+    
+    if ( $p ) {
+    	`stty -echo`;
+    }
     
     # wait for an answer
     my $a = <STDIN>; chomp $a;
+
+    if ( $p ) {
+    	`stty echo`; print "\n";
+    }
     
     # give it back
     return $a;

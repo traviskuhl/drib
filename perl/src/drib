@@ -5,34 +5,40 @@
 #  (c) Copyright Travis Kuhl 2009
 #  
 #
+# This is free software. You may redistribute copies of it under the terms of
+# the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
+# There is NO WARRANTY, to the extent permitted by law.
+#
 
 # our package
 package drib;
 
 # version
-my $VERSION = "0.0.7";
+my $VERSION = "0.0.8";
 
 # use packages
 use Getopt::Long;
 use Data::Dumper;
-use JSON;
 use File::Basename;
 use File::Find;
 use POSIX;
 use Digest::MD5 qw(md5_hex);
+use Crypt::CBC;
+
 
 # warnings
 #use warnings;
 #no warnings qw(io);
 
 # where our var folder is
-use constant VAR => "./var";
-use constant LIB => "./lib";
+use constant VAR => "/usr/local/var/drib";
+use constant LIB => "/usr/local/lib/drib";
 
 # load our config
 use lib LIB;
 
 # drib packages
+use JSON;
 use dist::local;
 use dist::drib;
 use utils;
@@ -509,6 +515,49 @@ sub install {
 	# open our manifest
 	my $manifest = from_json( file_get($tdir.'/.manifest') );
 	
+	# check if it's a secure package
+	if ( $manifest->{secure} != 0 && -e $tdir."/encrypted" ) {
+	
+		# ask for the passphrase 
+		my $passphrase = md5_hex( ask("This package is secured, please enter the Passphrase:",1) );
+
+		# now try to encrypt that tar file
+		my $cipher = Crypt::CBC->new( 
+			-key 	=> $passphrase,
+			-cipher => 'Blowfish'
+		);
+	
+		# open the encrypted file
+		my $enc = file_get("$tdir/encrypted");
+	
+		# try to unencrypt the file
+		my $tar = $cipher->decrypt($enc);
+	
+		# now put it pack
+		file_put("$tdir/secure.tar",$tar);
+	
+		# try to untar it 
+		`sudo tar -xf $tdir/secure.tar 2>/dev/null`;
+	
+		# check for a good file
+		if ( -e "$tdir/secure/.good" ) {
+		
+			# move everything from secure into tdir
+			`sudo mv -f $tdir/secure/* $tdir`;		
+					
+			# remove some files
+			`sudo rm -rf $tdir/.good $tdir/encrypted $tdir/secure $tdir/secure.tar`;
+			
+			# should be good to go now
+		
+		}
+		else {
+			fail("The Passphrase you provided was incorrect. Try again!");
+		}
+	
+	}
+	
+	
 	# run pre-install commands
 	_exec_commands($manifest,'pre-install');
 	
@@ -526,6 +575,7 @@ sub install {
 			`sudo cp -rf ./$d /`;
 		}
 	}
+
 
     # perform set file updates
     _write_settings_files($manifest->{set_files},$manifest->{set});
@@ -548,7 +598,7 @@ sub install {
     $SETTINGS->set($pid,$manifest->{set_files},'files');
 
     # cleanup our tmp dir
-    `sudo rm -r $tdir`;    
+    `sudo rm -fr $tdir`;    
     
 	# run pre-install commands
 	_exec_commands($manifest,'post-install');    
@@ -683,6 +733,17 @@ sub create {
 	# need the changelog
 	unless ( -e $Meta->{changelog} ) {
 		fail("Changelog file ($Meta->{changelog}) does not exist.");
+	}
+	
+	# pass
+	my $passphrase = 0;
+
+	# check if this is a secure pacakge
+	if ( defined $Meta->{secure} ) {
+		$passphrase = md5_hex( ask("Enter a Passphrase for this package:",1) );
+	}
+	else {
+		$Meta->{secure} = 0;
 	}
 
 	# now we need to create a tmp director
@@ -905,15 +966,61 @@ sub create {
 	# nice list of files
 	my @nicelist = map { s/$tdir//g; $_; } @listing;
 	
+	# move to our folder
+	chdir $tdir;	
+	
+	# if they want a secure package
+	# we need to move everything into a secure directory
+	if ( $passphrase != 0 ) {
+	
+		# make secure
+		`sudo mkdir $tdir/secure`;
+		
+		# move all files and dirst that are not secure
+		opendir(my $dh, $tdir);
+			foreach my $xf ( readdir($dh) ) {
+				if ( $xf ne "." && $xf ne ".." && $xf ne "secure" ) {			
+					`sudo mv $tdir/$xf $tdir/secure`;
+				}
+			}
+		closedir($dh);
+		
+		# add our good file
+		file_put("$tdir/secure/.good","1");
+	
+		# now tar just that file
+		`sudo tar -cf secure.tar ./secure`;
+	
+		# now try to encrypt that tar file
+		my $cipher = Crypt::CBC->new( 
+			-key 	=> $passphrase,
+			-cipher => 'Blowfish'
+		);
+		
+		# get the securet
+		my $sec_file = file_get($tdir."/secure.tar");
+	
+		# do it 
+		my $encrypted = $cipher->encrypt($sec_file);
+	
+		# remove the tar and save back
+		`sudo rm -rf $tdir/secure`; 	
+		`sudo rm $tdir/secure.tar`;
+	
+		# put it in there
+		file_put($tdir."/encrypted",$encrypted);
+	
+	}
+	
 	# need to create our own version of the manifest
 	my $manifest = {
 	    'project' => $project,
 		'type' => $type,	
 		'meta' => $Meta,
+		'secure' => $Meta->{secure},
 		'set' => $Set,
 		'set_files' => \@SettingFiles,
 		'commands' => $Commands,
-		'apache' => $Apache,
 		'raw' => $man,
 		'changelog' => file_get($Meta->{changelog}),
 		'buildenv' => {
@@ -926,9 +1033,6 @@ sub create {
 	
 	# add our manifest to the build 
 	file_put($tdir."/.manifest", to_json($manifest) );
-
-	# move to our folder
-	chdir $tdir;
 	
 	# name 
 	my $name = "$pkg-$version";
