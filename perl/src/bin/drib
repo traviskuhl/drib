@@ -14,7 +14,7 @@
 package drib;
 
 # version
-our $VERSION = "0.1";
+our $VERSION = "0.11";
 
 # use packages
 use Getopt::Long;

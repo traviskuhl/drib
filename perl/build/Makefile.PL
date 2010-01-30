@@ -2,7 +2,7 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
     NAME            => 'drib',
-    VERSION_FROM    => "../src/bin/drib",
+    VERSION_FROM    => "bin/drib",
     PREREQ_PM       => {
 			"File::Basename"	=> 0,
 			"File::Find"		=> 0,
@@ -11,8 +11,7 @@ WriteMakefile(
 			"JSON"				=> 0
 		},
 	INSTALLDIRS		=> 'vendor',
-    PMLIBDIRS       => [qw(../src/lib)],    
-    EXE_FILES       => [qw(../src/bin/drib)],
+	PMLIBDIRS       => [qw(../src/lib)],
+    EXE_FILES       => [qw(bin/drib)],
     AUTHOR          => 'Travis Kuhl <travis@drib.it>',
 );
-
