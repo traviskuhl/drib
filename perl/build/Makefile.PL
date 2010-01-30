@@ -1,11 +1,8 @@
 use ExtUtils::MakeMaker;
 
-use Data::Dumper;
-
-
 WriteMakefile(
     NAME            => 'drib',
-    VERSION_FROM    => "bin/drib", # finds $VERSION
+    VERSION_FROM    => "../src/bin/drib",
     PREREQ_PM       => {
 			"File::Basename"	=> 0,
 			"File::Find"		=> 0,
@@ -14,10 +11,8 @@ WriteMakefile(
 			"JSON"				=> 0
 		},
 	INSTALLDIRS		=> 'vendor',
-    PMLIBDIRS       => [qw(lib)],    
-    EXE_FILES       => [qw(bin/drib)],
+    PMLIBDIRS       => [qw(../src/lib)],    
+    EXE_FILES       => [qw(../src/bin/drib)],
     AUTHOR          => 'Travis Kuhl <travis@drib.it>',
 );
 
-
-print Dumper(%Config); die;
