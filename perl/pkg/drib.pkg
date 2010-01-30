@@ -1,35 +1,36 @@
 # drib.pkg 
 # (c) copyright travis kuhl
-
+ 
 ## Vars
 my $src = "../src";
-my $bin = "";
-my $lib = "";
-my $var = "";
-my $tmp = "";
-
-
+my $bin = "/usr/bin";
+my $lib = "/usr/lib/drib";
+my $var = "/usr/var/drib";
+my $tmp = "/tmp";
+ 
+ 
 ## Meta
 $Meta = {
     'project'       => 'drib',
     'name'          => 'drib',
-    'version'       => '0.0.3',
+    'version'       => '0.1',
     'summary'       => "drib distribution",
     'description'   => "Cross platform application distribution",
     'changelog'     => "changelog"
 };
-
-
+ 
+ 
 ## Dirs
 $Dirs = [
     "$lib/drib",
     "$lib/drib/dist",
     "$tmp/drib"
 ]; 
-
-
+ 
+ 
 ## Files
 $Files = [
+	["$bin/",			"$src/bin/drib"],
     ["$lib/drib",       {"find"=>$src.'/lib -name "*.pm"'}],
     ["$lib/drib/dist",  {"find"=>$src.'/lib/dist -name "*.pm"'}]   
 ];

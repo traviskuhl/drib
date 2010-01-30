@@ -1,21 +1,26 @@
+Version 0.1
+* changed up the folder directories
+* added new build process
+* fixed filename bug in `create`
+
 Version 0.0.8
 * added "secure" option to package files
 * added encryption to `create` command
 * added decruption to `install` command
 * added DEPEND "perl/Crypt::CBC"
-
+ 
 Version 0.0.7
 * added `config` command to update drib config settings 
 * added 'commands' interface
 * added glob to create command
-
+ 
 Version 0.0.6
 * added `remove` command
 * added var director to default install
 * added `unset` command
 * added same flag to install
 * added downgrade flag to install
-
+ 
 Version 0.0.5
 * updated README
 * changed dist::remote to dist::drib
@@ -23,24 +28,24 @@ Version 0.0.5
 * added settings file
 * implemented settings file update on set command
 * add --no-file option to set command
-
+ 
 Version 0.0.4
 * added list of files to create manifest
 * added both options to utils::trim
 * drib::dist::remote now correctly integrated with drib api
 * cleaned up self-intall
 * added exteranl project mapper for yum, pear & pecl
-
+ 
 Version 0.0.3
 * implemented set
 * implemented list
 * fixed local package db
 * fixed local settings db
 * added better subcommand help
-
+ 
 Version 0.0.2
 * install now works
 * create now works
-
+ 
 Version 0.0.1
 * inital build
