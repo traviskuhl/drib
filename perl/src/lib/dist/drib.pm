@@ -28,10 +28,16 @@ sub new {
 	$self->{host} = API_HOST;
 	$self->{port} = API_PORT;
 	$self->{version} = API_VERSION;
+	$self->{error} = "";
 	
 	# bless and return me
 	bless($self); return $self;
 
+}
+
+sub error {
+	my $self = shift;
+	return $self->{error};
 }
 
 sub check {
@@ -89,7 +95,7 @@ sub upload {
     # lets send it to the server
     my $resp = $self->_request({
         'end'       => "package/$project/$pkg/$version?branch=$branch",
-        'method'    => "PUT",
+        'method'    => "POST",
         'content'   => $tar
     });
  
@@ -164,6 +170,8 @@ sub _request {
         
     }
     else {
+    	my $r = from_json($res->content);
+    	$self->{error} = $r->{error};
         return 0;
     }    
 

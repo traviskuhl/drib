@@ -1045,7 +1045,7 @@ sub create {
 
 	# now send our file to dist
 	if ( $type eq 'release' && $dist == 1 ) {
-    	$DIST->upload({
+    	$r = $DIST->upload({
     	   'project' => $project,
     	   'username' => $CONFIG->get('username'),
     	   'name' => $pkg,
@@ -1053,6 +1053,12 @@ sub create {
     	   'branch' => $branch,
     	   'tar' => file_get($package)
         });
+        
+        # no r
+        if ( $r != 1 ) {
+        	fail("Could not upload package to Dist.\n Error: ".$DIST->error());
+        }
+        
     }
     
     # or move the file back to the pwd 
