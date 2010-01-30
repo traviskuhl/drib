@@ -1,0 +1,1458 @@
+#!/usr/bin/perl
+#
+#  drib
+# =================================
+#  (c) Copyright Travis Kuhl 2009-10
+#  
+#
+# This is free software. You may redistribute copies of it under the terms of
+# the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
+# There is NO WARRANTY, to the extent permitted by law.
+#
+
+# our package
+package drib;
+
+# version
+our $VERSION = "0.1";
+
+# use packages
+use Getopt::Long;
+use Data::Dumper;
+use File::Basename;
+use File::Find;
+use POSIX;
+use Digest::MD5 qw(md5_hex);
+use Crypt::CBC;
+use JSON;
+
+# lib
+use lib "../lib";
+
+# drib packages
+use drib::dist::local;
+use drib::dist::drib;
+use drib::utils;
+use drib::external;
+use drib::db;
+
+# act 
+my $act = 'help';
+
+# need at least one argv
+if ( $#ARGV != -1 ) {
+
+    # act 
+    $act = $ARGV[0];
+    
+}
+
+# aliases
+my %Alias = (   
+    'ls'=>'list',
+    'h'=>'help',
+    'i'=>'install', 'in' => 'install', 'inst' => 'install',
+    'c'=>'create',
+    'rm'=>'remove', 'r' => 'remove'
+);
+
+# what are the avail commands
+my $Commands = {
+	
+    # !help
+	'help' => {
+	   'func' => \&help,
+	   'help' => 'Show this message',
+	   'opts' => {
+	       'version' => 'version|v'
+	   }
+    },
+    
+    # !setup
+	'setup' => {
+        'func' => \&setup,
+        'help' => "Install the downloaded version of drib",
+	   'opts' => {
+            'type'=>'type|t=s',
+	   }        
+    },
+        
+    # !config 
+    'config' => {
+        'func' => \&config,
+        'help' => "View or update drib configuration settings",
+        'opts' => {}
+    },    
+    
+    # !install
+	'install' => {
+        'func' => \&install,
+        'help' => "Install a package from dist",
+        'opts' => {
+            'cleanup'=>'cleanup|c',        
+            'project'=>'project|p=s',
+            'version'=>'version=s',
+            'branch'=>'branch=s',
+            'same' => 'same|s',
+            'downgrade' => 'downgrade',
+        }
+    },
+    
+    # !create
+	'create' => {
+        'func' => \&create,
+        'help' => "Create a package",
+        'opts' => {
+            'project'=>'project|p=s',
+            'branch'=>'branch|b=s',
+            'install'=>'install|i',
+            'type'=>'type|t=s',
+            'dist'=>'dist!',
+            'cleanup'=>'cleanup|c'                    
+        }        
+    },
+    
+    # !set 
+    'set' => {
+        'func' => \&set,
+        'help' => "Set package variables",
+        'opts' => {
+            'files' => 'files!'
+        }
+    },
+   
+    # !unset 
+    'unset' => {
+        'func' => \&unset,
+        'help' => 'Unset package variables',
+        'opts' => {
+            'yes' => 'yes|y'
+        }    
+    },
+    
+    # !list
+    'list' => {
+        'func' => \&list,
+        'help' => "List all installed packages",
+        'opts' => {
+            'project' => 'project|p=s'
+        }
+    },
+    
+    # !remove
+    'remove' => {
+        'func' => \&rm,
+        'help' => "Remove installed packages",
+        'opts' => {
+            'force' => 'force|f',
+            'yes' => 'yes|y',
+            'unset' => 'unset|u',
+        }
+    }
+	
+};
+
+my $CONFIG = 0;
+my $DIST = 0;
+my $PACKAGES = 0;
+my $SETTINGS = 0;
+
+# if we self-install, we don't need
+# dist or config, mostly because it doesn't 
+# really exist
+unless ( $act eq 'self-install' ) {
+	
+	# find our var
+	my $var = getcwd() . "/../var/drib/";
+	
+	# set some thigns	
+    $CONFIG     = new drib::db('config',$var);	
+    $DIST       = new drib::dist::drib($CONFIG);    
+    $PACKAGES   = new drib::db('packges',$var);
+	$SETTINGS   = new drib::db('settings',$var);
+
+    # define what happens when we end
+    END {
+        $CONFIG->save() if $CONFIG;
+        $PACKAGES->save() if $PACKAGES;
+        $SETTINGS->save() if $SETTINGS;
+    }
+	
+}
+
+# check for a map 
+if ( exists $Alias{$act} ) {
+    $act = $Alias{$act};
+}
+
+# is the given command correct
+unless ( exists $Commands->{$act} ) {
+    $act = 'help';
+}
+
+# get options
+my %options = ();
+
+    # opts
+    my $opts = $Commands->{$act}->{opts};
+    
+    # get options
+    GetOptions(\%options, values %{$opts}); 
+
+# cmds 
+my @cmds = @ARGV; shift @cmds;
+
+# not help need root
+if ( $act ne 'help' && $> != 0 ) {
+    fail("You must run as root.");
+}
+
+# call it 
+$Commands->{$act}->{func}();
+
+# done
+exit 1;
+
+# help
+sub help {
+
+    # check if we want to show the version
+    if ( $options{'version'} ) {
+    
+        # fail with version
+        fail("drib $VERSION\nCopyright (C) Travis Kuhl 2009-10\n\nThis is free software.  You may redistribute copies of it under the terms of\nthe GNU General Public License <http://www.gnu.org/licenses/gpl.html>.\nThere is NO WARRANTY, to the extent permitted by law.");
+    
+    }
+    elsif ( $#cmds != -1 ) {
+    
+        # my
+        my $c = $cmds[0];
+        my $opts = ();
+    
+        # is it a valid command
+        unless ( exists $Commands->{$c} ) {
+            fail("Invalid Command.");
+        }
+        
+        # if options
+        foreach my $o ( keys %{$Commands->{$c}->{opts}} ) {
+            if ( index($Commands->{$c}->{opts}->{$o},'=') != -1 ) {
+                push(@opts,"--$o=[$o]");
+            }
+            else {            
+                push(@opts,"--$o");
+            }
+        }
+    
+        # print out the usage
+        msg("usage: drib [options] $c " . join(' ',@opts));
+        msg($Commands->{$c}->{help});
+    
+    }
+    else {
+    
+        # usage
+        msg("usage: drib [options] command [sub-command] [command-options]\n\nList of Commands:");
+        
+        # show them commands
+        foreach my $key ( keys %{$Commands} ) {
+            printf(" %-20s %s\n", "$key","$Commands->{$key}->{help}");
+        }
+        
+        # nothing more to do
+        exit;
+        
+    }
+
+}
+
+# setup
+sub setup {
+
+	# what we need
+	my ($conf,$var);
+    
+    # shift off install
+    shift @ARGV;
+
+	# ask
+	my @Ask = (
+	    ['username',"What is your drib.it Username",""],
+		['key', "What is your drib.it API Key",""],
+		['secret',"What is your drib.it API Secret",""],
+		['project',"What would you like your default project to be?","default"],
+	);
+
+	# ask them some questions
+	foreach my $a ( @Ask ) {
+		
+		# back to an array
+		@v = @{$a};
+		
+		if ( $#v == 2 ) {
+			print $v[1]." [".$v[2]."]: "; 
+		}
+		else {
+			print $v[1].": ";
+		}
+		$var = <>;
+		chomp $var;
+		if ( $var eq "" ) {
+			$var = $v[2];
+		}
+		$conf->{$v[0]} = $var;
+	}  	
+	
+	# need them
+    if ( $conf->{'username'} eq "" || $conf->{'key'} eq "" || $conf->{'secret'} eq "" ) {
+        fail("You didn't enter a Username, API Key or Secret. You need to do that before we can install.");
+	}
+	
+	# find our var
+	my $pwd = getcwd();
+	
+	# tmp set it
+    $conf->{'libf'} .= "$pwd/../lib/drib";
+    $conf->{'varf'} .= "$pwd/../var/drib";
+    $conf->{'tmpf'} .= "/tmp/drib";	
+	
+	# save our json conf
+	my $json = to_json({'default'=>$conf});
+	
+	# create our conf file
+	file_put($conf->{'varf'}."/config.json",$json);
+    
+    # conifg
+    $CONFIG = new drib::db('config',$conf->{'varf'});
+    $PACKAGES = new drib::db('packges',$conf->{'varf'});
+	$SETTINGS = new drib::db('settings',$conf->{'varf'});    
+    
+    # set our options
+    $options{'dist'} = 0;
+    $options{'install'} = 1;
+    $options{'cleanup'} = 1;
+        
+}
+
+# config
+sub config {
+
+    # if no commands they must want to view the corrent setings
+    if ( $#cmds == -1 ) {
+    
+        # all
+        my $config = $CONFIG->all();
+    
+        # loop through and print them
+        foreach my $c ( keys %{$config} ) {
+            msg(" $c: $config->{$c} ");
+        }
+    
+    }
+    else {
+    
+        # for each of them set the config
+        foreach my $c ( @cmds ) {
+            my($key,$val) = split(/\=/,$c);
+            $CONFIG->set($key,$val);
+            msg("set $key: $val");
+        }
+        
+        # message
+        fail("Configuration Updated");
+        
+    }
+
+}
+
+
+# install
+sub install {
+	
+	# given a file
+	my ($pkg_file) = @_;
+	
+	# get commands
+	my ($pkg,$version,$file,$project);
+
+	# need a package name
+	if ( $#cmds == -1 && !$pkg_file ) { fail("No Package Given"); }
+	
+	# if package has .tar.gz
+	# we don't need to go to dist
+	if ( $pkg_file || $cmds[0] =~ /\.tar\.gz/ ) {
+     
+        # not given
+        if ( !$pkg_file ) {
+            $pkg_file = $cmds[0];
+        }
+        
+        # where
+        unless ( -e "./$pkg_file" ) {
+            fail("Package file $pkg_file does not exists");
+        }
+     
+        # get it 
+        $file = file_get($pkg_file);	
+        
+        # if cleanup
+        if ( $options{'cleanup'} ) {
+            `sudo rm $pkg_file`;
+        }
+        
+	}
+	else {
+	
+        # get package name
+        my $p = _parse_pkg_name($cmds[0]);
+        
+        # set it 
+        $project    = $p->{project};
+        $pkg        = $p->{name};
+        $version    = $p->{version} || 'current';
+    	
+        # check for external projects
+        if ( in_array(\@external::PROJECTS,$project) ) {
+        
+            # what happeend
+            my $resp = &external::_map($project,$pkg,$version);
+            
+            # done
+            exit;
+            
+        }    
+    
+    	# now we need to check with dist 
+    	# to see if this package exists 
+    	my $exists = $DIST->check($project,$pkg,$version);
+    
+    	# if it exists we need to error
+    	unless ( $exists ) {
+    		fail("Package $pkg-$version does not exist.");
+    	}
+    
+    	# check if the package ist installed
+    	my $installed = $PACKAGES->get($p->{pid});
+    
+    		# if yes is it the same version
+    		if ( $installed ) {
+    		
+                # check if the same version is installed
+                if ( $installed->{meta}->{version} eq $exists && !$options{'same'} ) {
+                    fail("$pkg-$version is already installed");
+                }
+                
+                # check if the give version is smaller than the 
+                # one installed
+                if ( versioncmp($exists,$installed->{meta}->{version}) == -1 && !$options{'downgrade'} ) {
+                    fail("$pkg-$exists is less than the installed version ($installed->{meta}->{version}).\nUse --downgrade to override.");
+                }
+                
+    		}
+    		
+    	# ok so we now have it 
+    	# so lets get the file
+    	$file = $DIST->get($project,$pkg,$version);
+    	
+    }
+
+	# make a tmp dir
+	my $tdir = $CONFIG->get('tmpf') . "/" . rand_str(10);
+	
+	# make it 
+	`sudo mkdir $tdir`;
+	
+	# save the file to tdir 
+	file_put($tdir."/pkg",$file);
+	
+	# now move into the tmp dir 
+	chdir $tdir;
+	
+	# untar the file
+	`sudo tar -xzf pkg`;
+	
+	# open our manifest
+	my $manifest = from_json( file_get($tdir.'/.manifest') );
+	
+	# check if it's a secure package
+	if ( $manifest->{secure} != 0 && -e $tdir."/encrypted" ) {
+	
+		# ask for the passphrase 
+		my $passphrase = md5_hex( ask("This package is secured, please enter the Passphrase:",1) );
+
+		# now try to encrypt that tar file
+		my $cipher = Crypt::CBC->new( 
+			-key 	=> $passphrase,
+			-cipher => 'Blowfish'
+		);
+	
+		# open the encrypted file
+		my $enc = file_get("$tdir/encrypted");
+	
+		# try to unencrypt the file
+		my $tar = $cipher->decrypt($enc);
+	
+		# now put it pack
+		file_put("$tdir/secure.tar",$tar);
+	
+		# try to untar it 
+		`sudo tar -xf $tdir/secure.tar 2>/dev/null`;
+	
+		# check for a good file
+		if ( -e "$tdir/secure/.good" ) {
+		
+			# move everything from secure into tdir
+			`sudo mv -f $tdir/secure/* $tdir`;		
+					
+			# remove some files
+			`sudo rm -rf $tdir/.good $tdir/encrypted $tdir/secure $tdir/secure.tar`;
+			
+			# should be good to go now
+		
+		}
+		else {
+			fail("The Passphrase you provided was incorrect. Try again!");
+		}
+	
+	}
+	
+	
+	# run pre-install commands
+	_exec_commands($manifest,'pre-install');
+	
+	# now lets get a list of all directories
+	# and move them into place
+	opendir(my $dh, '.');
+	my @dirs = readdir($dh);
+	close($dh);
+	
+	# loop and move each of the 
+	# files to root. we force the 
+	# move. so if any existing folders 
+	foreach my $d ( @dirs ) {
+		if ( $d ne '.' && $d ne '..' && -d $d ) {
+			`sudo cp -rf ./$d /`;
+		}
+	}
+
+
+    # perform set file updates
+    _write_settings_files($manifest->{set_files},$manifest->{set});
+
+    # make a pid
+    my $pid = _get_pid($manifest->{project},$manifest->{meta}->{name});
+    
+    # don't need raw or changelog
+    $manifest->{raw} = "";
+    $manifest->{changelog} = "";
+    
+	# add package to our package db
+	$PACKAGES->set($pid,$manifest);
+    
+    # set it 
+    $PACKAGES->add($manifest->{meta}->{name},$pid,'map');
+
+    # any settings
+    $SETTINGS->set($pid,$manifest->{set});
+    $SETTINGS->set($pid,$manifest->{set_files},'files');
+
+    # cleanup our tmp dir
+    `sudo rm -fr $tdir`;    
+    
+	# run pre-install commands
+	_exec_commands($manifest,'post-install');    
+	
+	# tell them we're done
+	fail("Package $manifest->{meta}->{name} installed!");
+	
+}
+
+sub create {
+
+	# given a file
+	my ($pkg_file) = @_;
+	
+	# file
+	my $file = 0;
+	
+	# what up
+	if ( $pkg_file ) {
+	   $file = $pkg_file;
+	}
+	elsif ($#cmds != -1) {
+	   $file = $cmds[0];
+	}
+	else {
+	   fail("No Build Manifest given");
+	}
+
+	# optns
+	my $dist = $options{'dist'};
+	my $branch = $options{'branch'} || 'current';
+	my $type = $options{'type'} || 'release';
+	my $install = $options{'install'} || 0;
+
+        # not defined
+        unless ( defined $options{'dist'} ) {
+            $dist = 1;
+        }
+	
+	# make sure we're in the correct folder
+    my ($fname,$fpath) = fileparse($file);	
+	
+	# where are we now
+	my $pwd = getcwd();    
+    
+    # move into fpath
+    chdir $fpath;
+
+	# open the manifest
+	my $man = file_get($fname);
+
+	# check if the first two chars are 
+	# a hash bang
+	if ( substr($man,0,2) eq "#!" ) {
+		$man = `sudo $file`;
+	}
+
+	# save the man as a tmp file
+	my $tmp = $CONFIG->get('tmpf') . "/" . rand_str(5);
+
+	# put the man
+	file_put($tmp,$man);
+	
+	# what we need 
+	our $Meta = 0;
+	our $Set = 0;
+	our $Dirs = 0;
+	our $Files = 0;
+	our $Commands = 0;
+	our $Apache = 0;
+	
+	# try to include the file
+	eval {
+		do "$tmp";
+	};
+	
+	# don't need the file anymore
+	unlink $tmp;
+	
+	# if we couldn't we need to fail
+	if ($@) {
+		fail("Could not parse the Build Manifest");
+	}	
+		
+	# make sure we have what we need
+ 	if ( $Meta == 0) {
+ 		fail("Meta variable not defined in Build Manifest");
+ 	}
+
+	# we need the package name
+	my $pkg = $Meta->{name};
+	my $version = $Meta->{version};
+	my $project = $options{project} || $CONFIG->get('project');
+	
+	   # is project defined in meta
+	   if ( exists $Meta->{project} ) {
+	       $project = $Meta->{project};
+	   }
+	   
+    # version
+    if ( $type eq "symlink" || $type eq "s" ) {
+        $version = "$version.S".time();
+    }
+    elsif ( $type eq "beta" || $type eq "t" ) {
+    
+        # version
+        $version = "$version.B".time();
+        
+        # branch
+        $branch = "beta";
+        
+    }
+    elsif ( $type eq "nightly" || $type eq 't' ) {
+    
+        # version
+        $version = "$version.N".time();    
+        
+        # bracnh
+        $branch = "nightly";
+        
+    }
+
+	# unless config tells us no dist we want
+	# to make sure this version doesn't already 
+	# exist
+	if ( $dist == 1 ) {
+		if ( $DIST->check($project,$pkg,$version) ) {
+			fail("Package '$pkg' version '$version' already exists");
+		}
+	}
+
+	# need the changelog
+	unless ( -e $Meta->{changelog} ) {
+		fail("Changelog file ($Meta->{changelog}) does not exist.");
+	}
+	
+	# pass
+	my $passphrase = 0;
+
+	# check if this is a secure pacakge
+	if ( defined $Meta->{secure} ) {
+		$passphrase = md5_hex( ask("Enter a Passphrase for this package:",1) );
+	}
+	else {
+		$Meta->{secure} = 0;
+	}
+
+	# now we need to create a tmp director
+	my $tdir_name = rand_str(10);
+	my $tdir = $CONFIG->get('tmpf') . "/" . $tdir_name;
+
+	# create the dir
+	`sudo mkdir $tdir`;
+	
+	# listsings of what we've created
+	my @listing = ();
+
+	# now create and dirs they want
+	if ( $Dirs != 0 ) {
+		foreach my $dir ( @{$Dirs} ) {
+			my $d = $tdir . "/" . trim($dir,1);
+			`sudo mkdir -p $d`;
+			push(@listing,$d);
+		}
+	}
+	
+	# setting files
+	my @SettingFiles = ();
+	
+	# no files
+	if ( $Files != 0 ) {
+		foreach my $f ( @{$Files} ) {
+			
+			# where are we going
+			my $d = $tdir . trim($f->[0]);
+			
+			# if the dest doesn't exist 
+			# we need to create it 
+			unless ( -e $d ) {				
+				`sudo mkdir -p $d`;			
+			}
+			
+			# all the files
+			my @files = ();
+			
+			# now figure out if src is a
+			# single file or a ref
+			unless ( ref($f->[1]) eq "HASH" ) {
+				$f->[1] = {'src'=>$f->[1]};
+			}
+			
+			# files
+			my $file = $f->[1];
+			
+			# check if we have one file or many
+			if ( defined $file->{src} ) {
+				
+				# add it
+				push(@files,$file);
+								
+			}
+			else {
+			
+				# check for lfind
+				if ( defined $file->{find} ) {
+					
+					# run the find
+					my $r = `sudo find $file->{find}`;
+					my $root = "";
+					
+					# root 
+					if ( defined $file->{root} ) {
+					   $root = trim($file->{root});
+					}
+										
+					# each file
+					foreach my $item ( split(/\n/,$r) ) {
+					   
+                        # parse the file path
+                        my ($fname,$fpath) = fileparse($item);
+                        
+                        # append
+                        $append = "";
+                        
+                        # if path does not eq root
+                        # we need to append the subdir to the 
+                        # final dest also
+                        if ( $root ne "" && trim($fpath) ne $root ) {
+                            $fpath =~ s/$root//;
+                            $append = $fpath;
+                        }
+					
+                        # push ontop
+						push(@files,{
+                            'src'=>$item,
+                            'user'=>$file->{user},
+                            'group'=>$file->{group},
+                            'mode'=>$file->{mode},
+                            'append'=>$append,
+                            'settings' => $file->{settings}
+                        });
+						
+					}
+					
+				}
+				elsif ( defined $file->{'glob'} ) {
+				
+				    # glob it up
+				    my @r = glob $file->{'glob'};				    
+					my $root = "";
+					
+					# root 
+					if ( defined $file->{root} ) {
+					   $root = trim($file->{root});
+					}
+										
+					# each file
+					foreach my $item ( @r ) {
+					   
+                        # parse the file path
+                        my ($fname,$fpath) = fileparse($item);
+                        
+                        # append
+                        $append = "";
+                        
+                        # if path does not eq root
+                        # we need to append the subdir to the 
+                        # final dest also
+                        if ( $root ne "" && trim($fpath) ne $root ) {
+                            $fpath =~ s/$root//;
+                            $append = $fpath;
+                        }
+					
+                        # push ontop
+						push(@files,{
+                            'src'=>$item,
+                            'user'=>$file->{user},
+                            'group'=>$file->{group},
+                            'mode'=>$file->{mode},
+                            'append'=>$append,
+                            'settings' => $file->{settings}
+                        });
+						
+					}				    
+				
+				}
+			
+			}
+			
+			
+			# loop through each file
+			foreach my $item ( @files ) {
+		
+				# filename
+				my $n = basename($item->{src});
+		
+				# dest
+				my $_d = "$d/$n";
+				
+				# check for append
+				if ( defined $item->{append} && $item->{append} ne "" ) {
+				
+				    # append
+				    $_d = "$d$item->{append}";
+				    
+				    # directory may not exist. we need to create it
+				    unless ( -d $_d ) {
+				        `sudo mkdir -p $_d`;
+				    }
+				    
+				    # append name
+				    $_d .= $n;
+				    
+				}
+				
+				# push
+				push(@listing,$_d);
+				
+				# settings
+                if ( defined $item->{settings} && $item->{settings} eq 'true' ) {
+                
+                    # dest file
+                    my $sfd = $_d;
+                       $sfd =~ s/$tdir//g;
+                       
+                    # push it 
+                    push(@SettingFiles,{'file' => $sfd, 'tmpl' => file_get($item->{src}) });
+                    
+                }               
+                
+                # now see what type of build we have
+                if ( $type eq 'symlink' || $type eq 's' ) {
+                    my $_s = getcwd() . "/" . $item->{src};
+                    symlink $_s, $_d;
+                }
+                else {	
+    				`sudo cp $item->{src} $_d`;
+                }
+			
+				# if user
+				if ( defined $item->{user} ) {
+					`sudo chown $item->{user} $_d`;
+				}
+				
+				# group
+				if ( defined $item->{group} ) {
+					`sudo chown :$item->{group} $_d`;
+				}
+				
+				# mode
+				if ( defined $item->{mode} ) {
+					`sudo chmod $item->{mode} $_d`;
+				}				
+		
+		        # rename
+		        if ( defined $item->{rename} ) {
+                    `sudo mv $_d $d/$item->{rename}`;
+		        }
+		  
+			}
+							
+		}
+	} # END @files	
+	
+	# nice list of files
+	my @nicelist = map { s/$tdir//g; $_; } @listing;
+	
+	# move to our folder
+	chdir $tdir;	
+	
+	# if they want a secure package
+	# we need to move everything into a secure directory
+	if ( $passphrase != 0 ) {
+	
+		# make secure
+		`sudo mkdir $tdir/secure`;
+		
+		# move all files and dirst that are not secure
+		opendir(my $dh, $tdir);
+			foreach my $xf ( readdir($dh) ) {
+				if ( $xf ne "." && $xf ne ".." && $xf ne "secure" ) {			
+					`sudo mv $tdir/$xf $tdir/secure`;
+				}
+			}
+		closedir($dh);
+		
+		# add our good file
+		file_put("$tdir/secure/.good","1");
+	
+		# now tar just that file
+		`sudo tar -cf secure.tar ./secure`;
+	
+		# now try to encrypt that tar file
+		my $cipher = Crypt::CBC->new( 
+			-key 	=> $passphrase,
+			-cipher => 'Blowfish'
+		);
+		
+		# get the securet
+		my $sec_file = file_get($tdir."/secure.tar");
+	
+		# do it 
+		my $encrypted = $cipher->encrypt($sec_file);
+	
+		# remove the tar and save back
+		`sudo rm -rf $tdir/secure`; 	
+		`sudo rm $tdir/secure.tar`;
+	
+		# put it in there
+		file_put($tdir."/encrypted",$encrypted);
+	
+	}
+	
+	# need to create our own version of the manifest
+	my $manifest = {
+	    'project' => $project,
+		'type' => $type,	
+		'meta' => $Meta,
+		'secure' => $Meta->{secure},
+		'set' => $Set,
+		'set_files' => \@SettingFiles,
+		'commands' => $Commands,
+		'raw' => $man,
+		'changelog' => file_get($Meta->{changelog}),
+		'buildenv' => {
+			'user' => $ENV{'USER'},
+			'host' => $ENV{'HOSTNAME'},
+			'pwd' => $ENV{'PWD'}			
+		},
+		'files' => \@nicelist
+	};
+	
+	# add our manifest to the build 
+	file_put($tdir."/.manifest", to_json($manifest) );
+	
+	# name 
+	my $name = "$pkg-$version";
+
+	# tar 
+	`sudo tar -czf $name.tar.gz .`;
+	
+	# package
+	my $package = "$tdir/$pkg-$version.tar.gz";
+
+	# now send our file to dist
+	if ( $type eq 'release' && $dist == 1 ) {
+    	$r = $DIST->upload({
+    	   'project' => $project,
+    	   'username' => $CONFIG->get('username'),
+    	   'name' => $pkg,
+    	   'version' => $version,
+    	   'branch' => $branch,
+    	   'tar' => file_get($package)
+        });
+        
+        # no r
+        if ( $r != 1 ) {
+        	fail("Could not upload package to Dist.\n Error: ".$DIST->error());
+        }
+        
+    }
+    
+    # or move the file back to the pwd 
+    else {
+    
+        # put package in this directory
+        `sudo mv $package $pwd`;
+    
+    }
+    
+    # move back to current
+    chdir $pwd;
+
+	# remove our tmp dir
+	`sudo rm -r $tdir`;	
+
+    # install
+    if ( $install ) {
+    
+        # msg
+        msg("Package Created: $name");
+     
+        # run install
+        &install($name.".tar.gz");
+        
+    }
+    else {
+
+    	# done
+    	fail("Package Created: $name");
+    	
+    }
+
+}
+
+# set env vars
+sub set {
+
+    # packages
+	my $packages = $PACKAGES->all();    
+
+	# no subcommand we assume to show all packages
+	if ( $#cmds == -1 ) { 
+	
+        # get all settings
+        my $settings = $SETTINGS->all();
+	
+        # print them
+        foreach my $pid ( keys %{$packages} ) {
+            
+            # settings
+            my $s = $settings->{$pid};
+            
+            # loop and show
+            foreach my $key ( keys %{$s} ) {
+                msg(" $packages->{$pid}->{meta}->{name}.$key: $s->{$key} ");
+            }
+            
+        }
+	
+        # done
+        exit();
+	
+    }
+	
+	# map
+	my @map = @{$PACKAGES->get($cmds[0],'map')};
+	
+	# package
+	my $package = 0;
+	my $pid = 0;
+	
+    # how many
+    if ( $#map == -1 ) {
+        fail("Package {$cmds[0]} is not installed");
+    }
+    
+    # more than one
+    if ( $#map != 0 ) {
+    
+        # msg
+        msg("There are more than one packages named {$cmds[0]}. Pick the one you want:");
+        
+        # counter to match options
+        my $i = 0;
+        
+        # options
+        foreach my $pid ( @map ) {
+            $pkg = $packages->{$pid};
+            if ( $pkg ) {
+                msg(" [$i] $pkg->{project}/$pkg->{meta}->{name}");
+            }
+        }
+
+        # pick            
+		$pick = <>;
+		chomp $pick;
+		
+		# package
+		$pid = $map[$pick];
+        
+    }
+    else {
+        $pid = $map[0];
+    }
+    
+    # package
+    $package = $packages->{$pid};
+
+    # no package
+    unless ( $package ) {
+        fail("Could not find the package you requested.");
+    }
+    
+    # settings
+    my $settings = $SETTINGS->get($pid);
+        
+    # if no options we need to just show all the settings
+    if ( $#cmds == 0 ) {
+        
+        # msg
+        msg("Settings for $package->{meta}->{name}");
+        
+        # loop and show
+        foreach my $key ( keys %{$settings} ) {
+            msg(" $key: $settings->{$key}");
+        }
+        
+    }
+    
+    # set a settings
+    else {
+    
+        # shift off package
+        shift @cmds;
+        
+        # foreach of these do a set
+        foreach my $c ( @cmds ) {
+        
+            # split on =
+            ($key,$val) = split(/=/,$c);
+            
+            # reset
+            $settings->{$key} = $val;
+            
+            # tell them what we changed
+            msg("$package->{meta}->{name}.$key: $val");
+            
+        }
+        
+        # unless they tell us no
+        if ( $options{'files'} eq undef || $options{'files'} != 0 ) { 
+                    
+            # update the files
+            my $files = $SETTINGS->get($pid,'files');
+                
+            # update each settings file
+            _write_settings_files($files,$settings);
+            
+        }
+    
+    }
+
+}
+
+# unet
+sub unset {
+
+    # check if it's an internal call
+    my ($pid,$var,$stay) = @_;
+
+    # check cmd
+    if ( $#cmds == -1 && $pid == 0 ) {
+        fail("You have not provided a package and setting");
+    }
+    
+    # vars
+    my @vars = ();
+    
+    # pid
+    unless ( $pid ) {
+    
+        # package
+        my $pkg = _parse_pkg_name($cmds[0]);
+    
+        # pid
+        $pid = $pkg->{pid};
+        
+        # shift off command
+        shift @cmds;
+        
+        # add var
+        push @vars, $var;
+        
+    }
+    
+    # make sure package is installed
+    unless ( $PACKAGES->get($pid) ) {
+        fail("Package is not installed");
+    }
+
+    # get all settings
+    my $settings = $SETTINGS->get($pid);
+    
+    # now loop through and get settings
+    foreach my $var ( @vars ) {
+        delete $settings->{$var};
+    }
+
+    # reset settings
+    $SETTINGS->set($pid,$settings);
+
+    # done
+    unless ($stay) {
+        fail("Unset Complete");
+    }
+
+}
+
+# list
+sub list {
+    
+    # project
+    my $project = $options{'project'} || 'all'; 
+        
+    # get a list of packages
+    my $packages = $PACKAGES->all('default');
+    
+    # array
+    my @a = ();
+    
+    # loop
+    foreach my $pid ( keys %{$packages} ) {
+    
+        # get the package            
+        my $p = $packages->{$pid};        
+        
+        # if !project or $project = $pkg project
+        if ( $project eq 'all' || $project eq $p->{project} ) {
+            push (@a,$p);
+        }
+    
+    }
+            
+    # print it 
+    msg("Total of ".($#a+1)." Packages installed.");        
+            
+    # print them
+    foreach my $pkg ( @a ) {
+        msg(" $pkg->{project}/$pkg->{meta}->{name}-$pkg->{meta}->{version}");            
+    }
+    
+}
+
+# remove
+sub rm {
+
+    # no packages?
+    if ( $#cmds == -1 ) {
+        fail("You must provide at lease one package to remove.");
+    }
+
+    # define the packages
+    my @packages = ();
+    
+    # loop
+    foreach my $name ( @cmds ) {
+        push @packages, _parse_pkg_name($name);
+    }
+
+    # now make sure all packages are installed
+    foreach my $p ( @packages ) {            
+        unless ( $PACKAGES->get($p->{pid}) ) {
+            fail("Package $p->{name} is not installed");
+        }
+    }
+    
+    # unless they've told us yes, ask if they want to remove the packages
+    unless ( $options{'yes'} ) {
+        
+        # wait for an answer
+        my $resp = ask("Are you sure you want to remove ".($#packages+1)." ".plural("package",$#packages). " [y|n]: ");
+    
+        
+        # what
+        if ( $resp ne "y" && $resp ne "yes" ) {
+            fail("You said you don't want to remove them");
+        }
+    
+    }
+
+    # now loop through the packages and remove
+    foreach my $pkg ( @packages ) {
+    
+        # get the manifest 
+        my $manifest = $PACKAGES->get($pkg->{pid});
+    
+        # dirs
+        my @dirs = ();
+    
+        # loop through the files array and remove
+        # any files. after we'll loop through 
+        foreach my $f ( @{$manifest->{files}} ) {
+            
+            # is a directory
+            if ( -d $f ) {
+                push @dirs, $f;
+            }
+            else {
+                `sudo rm -f $f`;
+            }
+            
+        }
+         
+        # now any directories
+        foreach my $d ( @dirs ) {  
+        
+            # remove any empty sub dirs
+            finddepth(sub { rmdir $_ if -d }, $d);
+            
+            # remove the dir
+            rmdir($d);
+            
+        }
+
+        # check if they want us to remove
+        # the settings
+        if ( $options{'unset'} ) {
+            
+            # settings
+            my $settings = $SETTINGS->get($pid);            
+            
+            # get all settings for this package
+            foreach my $k ( keys %{$settings} ) {
+                &unset($pid,$k,1);
+            }
+   
+        }
+        
+        # now remove the package from the packages db
+        $PACKAGES->unset($pkg->{pid});
+    
+    }
+    
+    # done
+    fail("Packages removed");
+
+}
+
+sub _get_pid {
+    
+    # project
+    my $project = shift;
+    my $name = shift;
+    
+    # give back the hash
+    return  md5_hex($project."-".$name);
+
+}
+
+sub _parse_pkg_name {
+    
+    # get the raw package name
+    my $name = shift;
+
+    # first explode for version
+    ($part,$version) = split(/-/,$name);
+
+    # now explode for the project and name
+    ($project,$pkg) = split(/\//,$part);
+
+    # if no pkg, it must not have a project
+    if ( !$pkg ) {
+        $pkg = $project;
+        $project = 'default';
+    }
+    
+    # check for branch flag
+    if ( exists $options{'branch'} && !$version ) {
+        $version = $options{'branch'};
+    }
+
+    # give back an object
+    return { 'name' => $pkg, 'project' => $project, 'version' => $version, 'pid' => _get_pid($project,$pkg) };
+
+}
+
+# _write_settings_files
+sub _write_settings_files {
+    
+    # what 
+    my $files = shift;
+    my $settings = shift;
+
+    # open each file
+    foreach my $item ( @{$files} ) {
+            
+        # file
+        my $file = $item->{file};
+        
+        # content            
+        my $content =  $item->{tmpl};
+    
+        # loop through each setting
+        foreach my $key ( keys %{$settings} ) {
+            $content =~ s/\$\($key\)/$settings->{$key}/g;
+        }
+        
+        # write back the file
+        file_put($file,$content);
+    
+    }
+
+}
+
+# _exec_commands
+sub _exec_commands {
+
+    # get them
+    my $manifest = shift;
+    my $type = shift;
+
+    # see if commands exists
+    if ( exists $manifest->{commands} ) {
+    
+        # does this type of command exist
+        if ( exists $manifest->{commands}->{$type} ) {
+            
+            # loop through and execute
+            foreach my $c ( @{$manifest->{commands}->{$type}} ) {
+                print `$c`;
+            }
+        
+        }
+    
+    }
+
+}
