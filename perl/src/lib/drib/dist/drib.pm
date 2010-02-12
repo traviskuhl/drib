@@ -18,10 +18,10 @@ use JSON;
 use Data::Dumper;
 
 # version
-my $VERSION = "0.0.1";
+my $VERSION = "X";
 
 # some constants
-use constant API_HOST => "http://67.23.31.44";
+use constant API_HOST => "http://api.drib.it";
 use constant API_PORT => 4080;
 use constant API_VERSION => "1";
 

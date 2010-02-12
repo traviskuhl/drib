@@ -27,7 +27,7 @@ if ( -e "./archive/$name" ) {
 my $file = file_get("$tmp/bin/drib");
 
 # replace it 
-$file =~ s/VERSION \= "([0-9\.]+)"/VERSION \= "$version"/gi;
+$file =~ s/VERSION \= "X"/VERSION \= "$version"/gi;
 
 # put it back
 file_put("$tmp/bin/drib",$file);

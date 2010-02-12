@@ -57,7 +57,7 @@ sub file_put {
 	
 	my ($file,$content) = @_;
 
-	open(FH,">".$file);
+	open(FH,">".$file) || fail("Could not write to $file");
 	print FH $content;
 	close(FH);
 

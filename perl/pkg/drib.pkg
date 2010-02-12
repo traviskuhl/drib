@@ -31,6 +31,6 @@ $Dirs = [
 ## Files
 $Files = [
 	["$bin/",			"$src/bin/drib"],
-    ["$lib/drib",       {"find"=>$src.'/lib -name "*.pm"'}],
-    ["$lib/drib/dist",  {"find"=>$src.'/lib/dist -name "*.pm"'}]   
+    ["$lib/drib",       {"find"=>$lib.' -name "*.pm"'}],
+    ["$lib/drib/dist",  {"find"=>$lib.'/dist -name "*.pm"'}]   
 ];

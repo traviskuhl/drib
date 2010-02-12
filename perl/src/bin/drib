@@ -160,10 +160,10 @@ my $SETTINGS = 0;
 # if we self-install, we don't need
 # dist or config, mostly because it doesn't 
 # really exist
-unless ( $act eq 'self-install' ) {
+unless ( $act eq 'setup' ) {
 	
 	# find our var
-	my $var = getcwd() . "/../var/drib/";
+	my $var = dirname((-f $0 ? $0 : readlink($0))) . "/../var/drib/";
 	
 	# set some thigns	
     $CONFIG     = new drib::db('config',$var);	
@@ -309,12 +309,15 @@ sub setup {
 	}
 	
 	# find our var
-	my $pwd = getcwd();
+	my $pwd = dirname((-f $0 ? $0 : readlink($0)));
 	
 	# tmp set it
-    $conf->{'libf'} .= "$pwd/../lib/drib";
     $conf->{'varf'} .= "$pwd/../var/drib";
     $conf->{'tmpf'} .= "/tmp/drib";	
+    
+	# make our var
+	`sudo mkdir -p $conf->{'varf'}`;
+	`sudo mkdir -p $conf->{'tmpf'}`;
 	
 	# save our json conf
 	my $json = to_json({'default'=>$conf});

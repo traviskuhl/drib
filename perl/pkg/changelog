@@ -1,3 +1,14 @@
+Version 0.1.3
+* added dir creation to `setup`
+* added fail to file_put in util
+
+Version 0.1.2
+* fixed symlink issue
+
+Version 0.1.1
+* updated Makefile.PL to fix lib path
+* added min version req in Makefile.PL
+
 Version 0.1
 * changed up the folder directories
 * added new build process
