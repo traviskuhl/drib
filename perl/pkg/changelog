@@ -1,3 +1,12 @@
+Version 0.3
+* added correct set handeling
+
+Version 0.2.1
+* fixed remote::get fuction
+
+Version 0.2
+* remote dist storage
+
 Version 0.1.3
 * added dir creation to `setup`
 * added fail to file_put in util

@@ -14,7 +14,7 @@
 package drib;
 
 # version
-our $VERSION = "0.11";
+our $VERSION = "X";
 
 # use packages
 use Getopt::Long;
@@ -32,6 +32,7 @@ use lib "../lib";
 # drib packages
 use drib::dist::local;
 use drib::dist::drib;
+use drib::dist::remote;
 use drib::utils;
 use drib::external;
 use drib::db;
@@ -157,6 +158,7 @@ my $DIST = 0;
 my $PACKAGES = 0;
 my $SETTINGS = 0;
 
+
 # if we self-install, we don't need
 # dist or config, mostly because it doesn't 
 # really exist
@@ -167,7 +169,7 @@ unless ( $act eq 'setup' ) {
 	
 	# set some thigns	
     $CONFIG     = new drib::db('config',$var);	
-    $DIST       = new drib::dist::drib($CONFIG);    
+    $DIST       = new drib::dist::remote($CONFIG);    
     $PACKAGES   = new drib::db('packges',$var);
 	$SETTINGS   = new drib::db('settings',$var);
 
@@ -538,10 +540,6 @@ sub install {
 		}
 	}
 
-
-    # perform set file updates
-    _write_settings_files($manifest->{set_files},$manifest->{set});
-
     # make a pid
     my $pid = _get_pid($manifest->{project},$manifest->{meta}->{name});
     
@@ -555,9 +553,24 @@ sub install {
     # set it 
     $PACKAGES->add($manifest->{meta}->{name},$pid,'map');
 
-    # any settings
-    $SETTINGS->set($pid,$manifest->{set});
+	# get settings for this file 
+	my $curset = $SETTINGS->get($pid) || {}; 
+
+    # any settings should always stay the same
+    foreach $k ( keys %{$manifest->{set}} ) {
+	    unless ( defined $curset->{$k} ) {
+			$curset->{$k} = $manifest->{set}->{$k};
+    	}
+    }
+    
+    # set settings
+    $SETTINGS->set($pid,$curset);
+    
+    # set files
     $SETTINGS->set($pid,$manifest->{set_files},'files');
+
+    # perform set file updates
+    _write_settings_files($manifest->{set_files},$curset);
 
     # cleanup our tmp dir
     `sudo rm -fr $tdir`;    
@@ -682,6 +695,7 @@ sub create {
         $branch = "nightly";
         
     }
+
 
 	# unless config tells us no dist we want
 	# to make sure this version doesn't already 
@@ -850,7 +864,6 @@ sub create {
 			
 			}
 			
-			
 			# loop through each file
 			foreach my $item ( @files ) {
 		
@@ -924,6 +937,7 @@ sub create {
 							
 		}
 	} # END @files	
+		
 	
 	# nice list of files
 	my @nicelist = map { s/$tdir//g; $_; } @listing;
@@ -1085,55 +1099,24 @@ sub set {
         exit();
 	
     }
-	
-	# map
-	my @map = @{$PACKAGES->get($cmds[0],'map')};
-	
-	# package
-	my $package = 0;
-	my $pid = 0;
-	
-    # how many
-    if ( $#map == -1 ) {
-        fail("Package {$cmds[0]} is not installed");
-    }
     
-    # more than one
-    if ( $#map != 0 ) {
-    
-        # msg
-        msg("There are more than one packages named {$cmds[0]}. Pick the one you want:");
-        
-        # counter to match options
-        my $i = 0;
-        
-        # options
-        foreach my $pid ( @map ) {
-            $pkg = $packages->{$pid};
-            if ( $pkg ) {
-                msg(" [$i] $pkg->{project}/$pkg->{meta}->{name}");
-            }
-        }
 
-        # pick            
-		$pick = <>;
-		chomp $pick;
+	# parse package name
+	my $pkg = _parse_pkg_name($cmds[0]);
 		
-		# package
-		$pid = $map[$pick];
-        
-    }
-    else {
-        $pid = $map[0];
-    }
+	# pid
+	my $pid = $pkg->{pid};		
+		
+		# is package installed
+		unless ( defined $packages->{$pid} ) {
+			fail("Package $cmds[0] is not installed");
+		}
+		
     
+    _exec_commands($packages->{$pid},'pre-set');		
+		        
     # package
     $package = $packages->{$pid};
-
-    # no package
-    unless ( $package ) {
-        fail("Could not find the package you requested.");
-    }
     
     # settings
     my $settings = $SETTINGS->get($pid);
@@ -1183,6 +1166,8 @@ sub set {
         }
     
     }
+    
+    _exec_commands($packages->{$pid},'post-set');
 
 }
 
@@ -1438,6 +1423,12 @@ sub _write_settings_files {
 
 # _exec_commands
 sub _exec_commands {
+	
+	# pwd
+	my $pwd = getcwd();
+	
+	# move to /
+	chdir("/");
 
     # get them
     my $manifest = shift;
@@ -1451,11 +1442,14 @@ sub _exec_commands {
             
             # loop through and execute
             foreach my $c ( @{$manifest->{commands}->{$type}} ) {
-                print `$c`;
+                system($c);
             }
         
         }
     
     }
+    
+    # go back
+    chdir($pwd);
 
 }
