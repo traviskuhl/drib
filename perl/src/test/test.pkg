@@ -18,12 +18,14 @@
 #
 	
 	$Meta = {
+		
+		'project' => 'drib',
 	
 		# name 
 		'name' => "test",
 		
 		# version
-		'version' => "1.0.12",
+		'version' => "file:changelog",
 		
 		# summary
 		'summary' => "This is a test packge",
@@ -32,12 +34,25 @@
 		'description' => "This is a description of the package",
 		
 		# changelog file
-		'changelog' => "$src/changelog",
+		'changelog' => "./changelog",
 		
 		# secure package
-		'secure' => 1
+		# 'secure' => 1
 	
 	};
+	
+
+#
+# Dependencys
+################################
+# define other packages that need 
+# to be installed before we install
+# this package
+#	
+$Depend = [
+	{ 'pkg' => "external/php_zend", 'min' => '0.1', 'max' => '2.0' },
+	{ 'pkg' => "external/php_braintree", 'min' => '0.1', 'max' => '2.0' }	
+];
 
 
 #

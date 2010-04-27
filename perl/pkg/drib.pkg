@@ -4,7 +4,7 @@
 ## Vars
 my $src = "../src";
 my $bin = "/usr/bin";
-my $lib = "/usr/lib";
+my $lib = "/usr/lib/perl5/vendor_perl/5.8.8/";
 my $var = "/usr/var/drib";
 my $tmp = "/tmp";
  
@@ -13,7 +13,7 @@ my $tmp = "/tmp";
 $Meta = {
     'project'       => 'drib',
     'name'          => 'drib',
-    'version'       => '0.1',
+    'version'       => 'file:changelog',
     'summary'       => "drib distribution",
     'description'   => "Cross platform application distribution",
     'changelog'     => "changelog"

@@ -30,12 +30,10 @@ use JSON;
 use lib "../lib";
 
 # drib packages
-use drib::dist::local;
-use drib::dist::drib;
-use drib::dist::remote;
 use drib::utils;
 use drib::external;
 use drib::db;
+use drib::host;
 
 # act 
 my $act = 'help';
@@ -47,6 +45,9 @@ if ( $#ARGV != -1 ) {
     $act = $ARGV[0];
     
 }
+
+# content
+my $ocmd = join(" ",@ARGV);
 
 # aliases
 my %Alias = (   
@@ -96,6 +97,7 @@ my $Commands = {
             'branch'=>'branch=s',
             'same' => 'same|s',
             'downgrade' => 'downgrade',
+            'host' => 'host|h=s'
         }
     },
     
@@ -118,7 +120,8 @@ my $Commands = {
         'func' => \&set,
         'help' => "Set package variables",
         'opts' => {
-            'files' => 'files!'
+            'files' => 'files!',
+            'host' => 'host|h=s'            
         }
     },
    
@@ -162,16 +165,25 @@ my $SETTINGS = 0;
 # if we self-install, we don't need
 # dist or config, mostly because it doesn't 
 # really exist
-unless ( $act eq 'setup' ) {
+unless ( $act eq 'setup' || $act eq 'config' ) {
 	
 	# find our var
 	my $var = dirname((-f $0 ? $0 : readlink($0))) . "/../var/drib/";
 	
 	# set some thigns	
-    $CONFIG     = new drib::db('config',$var);	
-    $DIST       = new drib::dist::remote($CONFIG);    
+    $CONFIG     = new drib::db('config',$var);	  
     $PACKAGES   = new drib::db('packges',$var);
 	$SETTINGS   = new drib::db('settings',$var);
+	
+    # figure our what dist package to use
+    my $mod = $CONFIG->get('dist') || "drib::dist::drib";
+    
+    # use 
+    use drib::dist::drib;
+    use drib::dist::remote;
+
+    # create a dist object
+    $DIST = new $mod($CONFIG);  
 
     # define what happens when we end
     END {
@@ -180,6 +192,22 @@ unless ( $act eq 'setup' ) {
         $SETTINGS->save() if $SETTINGS;
     }
 	
+}
+
+# load config if we in config 
+if ( $act eq "config" ) {
+
+	# find our var
+	my $var = dirname((-f $0 ? $0 : readlink($0))) . "/../var/drib/";
+	
+	# get config
+    $CONFIG     = new drib::db('config',$var);	  
+
+    # define what happens when we end
+    END {
+        $CONFIG->save() if $CONFIG;
+    }
+
 }
 
 # check for a map 
@@ -370,28 +398,69 @@ sub config {
 
 }
 
-
-# install
 sub install {
+
+	# need a package name
+	if ( $#cmds == -1 && !$pkg_file ) { fail("No Package Given"); }
+
+	# loop me up
+	foreach my $p ( @cmds ) {
+		
+		# try to isntall
+		my $r = _do_install( $p );
+			
+		# tell them we're done
+		msg($r);		
+	
+	}
+	
+}
+
+# _do_install
+sub _do_install {
 	
 	# given a file
 	my ($pkg_file) = @_;
 	
 	# get commands
 	my ($pkg,$version,$file,$project);
-
-	# need a package name
-	if ( $#cmds == -1 && !$pkg_file ) { fail("No Package Given"); }
+	
+	# check for host
+	if ( $options{'host'} ) {
+		
+		# remove host
+		$ocmd =~ s/-h(ost)?=?.*//gi;
+		
+		# host
+		my $h = new drib::host($options{'host'});
+		
+		# cmd
+		$cmd = "sudo drib " . $ocmd;
+		
+		# run the command
+		my ($r,$msg) = $h->cmd($cmd);
+		
+		# tell them
+		if ( $r ) {
+			return "$pkg_file was installed on $options{'host'}";
+		}
+		else {
+			return "$pkg_file could not be installed on $options{'host'}";
+		}
+	
+	}
+	
+	# where are we now
+	my $start_pwd = getcwd();  	
+	
+	# manifest
+	my $manifest = 0;
+	my $local = 0;
 	
 	# if package has .tar.gz
 	# we don't need to go to dist
-	if ( $pkg_file || $cmds[0] =~ /\.tar\.gz/ ) {
-     
-        # not given
-        if ( !$pkg_file ) {
-            $pkg_file = $cmds[0];
-        }
-        
+	if ( $pkg_file =~ /\.tar\.gz/ ) {    
+	    
         # where
         unless ( -e "./$pkg_file" ) {
             fail("Package file $pkg_file does not exists");
@@ -405,11 +474,21 @@ sub install {
             `sudo rm $pkg_file`;
         }
         
+        # manifest
+        $manifest = _unpack_package_tar($file);
+        
+        # local
+        $local = $pkg_file;
+        $local =~ s/\.tar\.gz//;
+        
+        # add to manifest
+        $manifest->{meta}->{local} = $local;
+        
 	}
 	else {
 	
         # get package name
-        my $p = _parse_pkg_name($cmds[0]);
+        my $p = _parse_pkg_name($pkg_file);
         
         # set it 
         $project    = $p->{project};
@@ -420,10 +499,7 @@ sub install {
         if ( in_array(\@external::PROJECTS,$project) ) {
         
             # what happeend
-            my $resp = &external::_map($project,$pkg,$version);
-            
-            # done
-            exit;
+            return  &external::_map($project,$pkg,$version);
             
         }    
     
@@ -436,6 +512,13 @@ sub install {
     		fail("Package $pkg-$version does not exist.");
     	}
     
+    	# ok so we now have it 
+    	# so lets get the file
+    	$file = $DIST->get($project,$pkg,$version);    
+    
+    	# unpack
+    	$manifest = _unpack_package_tar($file);
+    
     	# check if the package ist installed
     	my $installed = $PACKAGES->get($p->{pid});
     
@@ -443,41 +526,122 @@ sub install {
     		if ( $installed ) {
     		
                 # check if the same version is installed
-                if ( $installed->{meta}->{version} eq $exists && !$options{'same'} ) {
-                    fail("$pkg-$version is already installed");
+                if ( $installed->{meta}->{version} eq $manifest->{meta}->{version} && !$options{'same'} ) {
+                    return "$pkg-$version is already installed";
                 }
                 
                 # check if the give version is smaller than the 
                 # one installed
-                if ( versioncmp($exists,$installed->{meta}->{version}) == -1 && !$options{'downgrade'} ) {
-                    fail("$pkg-$exists is less than the installed version ($installed->{meta}->{version}).\nUse --downgrade to override.");
+                if ( versioncmp($manifest->{meta}->{version},$installed->{meta}->{version}) == -1 && !$options{'downgrade'} ) {
+                    return "$pkg-$exists is less than the installed version ($installed->{meta}->{version}).\nUse --downgrade to override.";
                 }
                 
     		}
-    		
-    	# ok so we now have it 
-    	# so lets get the file
-    	$file = $DIST->get($project,$pkg,$version);
-    	
+    		    		    	
     }
 
-	# make a tmp dir
-	my $tdir = $CONFIG->get('tmpf') . "/" . rand_str(10);
+	# no manifest
+	if ( $manifest == 0 ) {
+		fail("Manifest is unknow. Try Again.");
+	}
 	
-	# make it 
-	`sudo mkdir $tdir`;
+	# lets see if there are any depend
+	if ( $manifest->{depend} ) {
+		
+		# install
+		my @install = ();
+		
+		# lets loop through and see if the packages
+		# they've requested are installed
+		foreach my $item ( @{$manifest->{depend}} ) {
+			
+			# parse a package name
+			my $p = _parse_pkg_name($item->{pkg});
+			
+			# package
+			my $i = $PACKAGES->get($p->{pid});
+			
+			# min and max
+			my $min = $item->{min} || 0;
+			my $max = $item->{max} || 0;
+			my $ver = $item->{version} || 0;
+		
+			# if it's insatlled we need to check
+			# min and max
+			if ( $i ) {
+			
+				# is there a min and max
+				if ( $ver != 0 && $ver != $i->{meta}->{version} ) {
+					fail("Installed version of $i->{meta}->{name} ($i->{meta}->{version}) does not meet $manifest->{meta}->{name} version requirement ($min)");
+				}			
+			
+				# is there a min and max
+				if ( $min != 0 && versioncmp($i->{meta}->{version},$min) == -1 ) {
+					fail("Installed version of $i->{meta}->{name} ($i->{meta}->{version}) does not meet $manifest->{meta}->{name} minimun requirement ($min)");
+				}
+
+				# is there a min and max
+				if ( $max != 0 && versioncmp($max,$i->{meta}->{version}) == -1 ) {
+					fail("Installed version of $i->{meta}->{name} ($i->{meta}->{version}) does not meet $manifest->{meta}->{name} maximum requirement ($max)");
+				}				
+				
+			}
+			else {
+				
+				# is there a version
+				if ( $ver == 0 ) {
+					$ver = $options{'branch'} || 'current';
+				}
+				
+				# package name
+				my $pn = $p->{project} ."/" . $p->{name} . "-" . $ver;
+				
+				# push to install
+				push(@install,$pn);
+				
+			}
+		
+		}
+		
+		# are their files to install
+		if ( $#install != -1 ) {		
+		
+			# install
+			foreach my $p ( @install ) {
+				
+				# try to install
+				msg(_do_install($p));
+			
+			}
+			
+			# move back to start pwd
+			chdir $start_pwd;			
+			
+			# now try reinstalling the package file
+			return _do_install($pkg_file);		
+			
+		}
 	
-	# save the file to tdir 
-	file_put($tdir."/pkg",$file);
+	}
 	
-	# now move into the tmp dir 
-	chdir $tdir;
 	
-	# untar the file
-	`sudo tar -xzf pkg`;
+	# get a package name
+	my $p = _parse_pkg_name($manifest->{project}."/".$manifest->{meta}->{name});
 	
-	# open our manifest
-	my $manifest = from_json( file_get($tdir.'/.manifest') );
+	# check if the package ist installed
+	my $installed = $PACKAGES->get($p->{pid});
+	
+		# installed we should remove
+		if ( $installed ) {
+		    
+			# since we're still moving on
+			# we need to remove the current file
+			my @rm = ($p);	
+			
+			# remove 
+			_remove(\@rm);		   
+
+		}
 	
 	# check if it's a secure package
 	if ( $manifest->{secure} != 0 && -e $tdir."/encrypted" ) {
@@ -516,7 +680,7 @@ sub install {
 		
 		}
 		else {
-			fail("The Passphrase you provided was incorrect. Try again!");
+			return "The Passphrase you tried for '".$manifest->{meta}->{name}."' was incorrect. Try again!";
 		}
 	
 	}
@@ -535,7 +699,7 @@ sub install {
 	# files to root. we force the 
 	# move. so if any existing folders 
 	foreach my $d ( @dirs ) {
-		if ( $d ne '.' && $d ne '..' && -d $d ) {
+		if ( $d ne '.' && $d ne '..' && -d $d ) {			
 			`sudo cp -rf ./$d /`;
 		}
 	}
@@ -568,6 +732,9 @@ sub install {
     
     # set files
     $SETTINGS->set($pid,$manifest->{set_files},'files');
+    
+    # _update_settings_txt_file
+    _update_settings_txt_file();
 
     # perform set file updates
     _write_settings_files($manifest->{set_files},$curset);
@@ -577,9 +744,9 @@ sub install {
     
 	# run pre-install commands
 	_exec_commands($manifest,'post-install');    
-	
-	# tell them we're done
-	fail("Package $manifest->{meta}->{name} installed!");
+
+	# tell them what up
+	return "Package $manifest->{meta}->{name} installed!";
 	
 }
 
@@ -589,18 +756,64 @@ sub create {
 	my ($pkg_file) = @_;
 	
 	# file
-	my $file = 0;
+	my @file = ();
+	
+	# where are we now
+	my $pwd = getcwd();    	
 	
 	# what up
 	if ( $pkg_file ) {
-	   $file = $pkg_file;
+	   push(@file,$pkg_file);
 	}
 	elsif ($#cmds != -1) {
-	   $file = $cmds[0];
+		push(@file,$cmds[0]);
 	}
 	else {
-	   fail("No Build Manifest given");
+	
+		# open the directory and see if there's a pkg file	
+		opendir(my $dh, $pwd);
+		my @files = grep { $_ =~ /\.pkg/ } readdir($dh);
+		closedir $dh;
+		
+		# if yes set as file
+		if ( $#files != -1 ) {
+			@file = @files;
+		}
+
 	}
+	
+	# still no file 
+	if ( $#file == -1 ) {
+		
+		my $r = ask("Would you like to recursivly build all files in this directory. [n]");
+		
+		# ask if they want to build the directory
+		if ( lc(substr($r,0,1)) eq "y" ) {
+			
+			# search the directory
+			@file = @{search_dir($pwd,"*.pkg")};
+			
+		}
+		
+	}
+	
+		
+	# make sure we have a file
+	if ( $#file == -1 ) {
+		fail("No Build Manifest given");
+	}
+	
+	# do create
+	foreach my $f (@file) {
+		msg(&_do_create($f));
+	}
+	
+}
+
+# do create
+sub _do_create {
+
+	my ($file) = @_;
 
 	# optns
 	my $dist = $options{'dist'};
@@ -613,12 +826,12 @@ sub create {
             $dist = 1;
         }
 	
+	# where are we now
+	my $pwd = getcwd();    		
+	
 	# make sure we're in the correct folder
     my ($fname,$fpath) = fileparse($file);	
-	
-	# where are we now
-	my $pwd = getcwd();    
-    
+		
     # move into fpath
     chdir $fpath;
 
@@ -644,6 +857,7 @@ sub create {
 	our $Files = 0;
 	our $Commands = 0;
 	our $Apache = 0;
+	our $Depend = 0;
 	
 	# try to include the file
 	eval {
@@ -667,6 +881,25 @@ sub create {
 	my $pkg = $Meta->{name};
 	my $version = $Meta->{version};
 	my $project = $options{project} || $CONFIG->get('project');
+	my $vff = 0;
+	
+		# figure if version is a file we have to look in
+		if ( $version =~ /file\:/ ) {
+			
+			# remove the file
+			$version =~ s/file\://;
+			
+			# version from file
+			$vff = $version;			
+			
+			# open the file 
+			my $f = file_get($version) =~ /Version ([0-9\.]+)/i;
+			
+			# set hte verison
+			$version = $Meta->{version} = $1;	
+			
+						
+		}
 	
 	   # is project defined in meta
 	   if ( exists $Meta->{project} ) {
@@ -675,9 +908,10 @@ sub create {
 	   
     # version
     if ( $type eq "symlink" || $type eq "s" ) {
-        $version = "$version.S".time();
+        $version = "$version.S".time();        
+        $dist = 0;
     }
-    elsif ( $type eq "beta" || $type eq "t" ) {
+    elsif ( $type eq "beta" || $type eq "b" ) {
     
         # version
         $version = "$version.B".time();
@@ -695,20 +929,82 @@ sub create {
         $branch = "nightly";
         
     }
-
+    elsif ( $type eq "qa" || $type eq 'q' ) {
+    
+        # version
+        $version = "$version.QA".time();    
+        
+        # bracnh
+        $branch = "qa";
+        
+    }
 
 	# unless config tells us no dist we want
 	# to make sure this version doesn't already 
 	# exist
 	if ( $dist == 1 ) {
 		if ( $DIST->check($project,$pkg,$version) ) {
-			fail("Package '$pkg' version '$version' already exists");
+		
+			# see if they're using a file:
+			if ( $vff ) {
+				
+				# ask them if they want to add to the file
+				my $r = ask("Version $version already exists for $pkg. Would you like to up the version and add a comment? [y]");
+				
+				# if we get y
+				if ( lc(substr($r,0,1)) eq "y" || $r eq "" ) {
+					
+					# one more
+					my $iv = incr_version($version);
+					
+					# ask for the new version
+					my $v = ask(" New version Number [".$iv."]:");
+					
+						# no number
+						if ( $v eq "" ) {
+							$v = $iv;
+						}
+					
+					# comment
+					my $c = ask(" Add Comments [y]:");
+	
+						if ( lc(substr($r,0,1)) eq "y" || $r eq ""  ) {
+							
+							# tmp file
+							my $t = $CONFIG->get('tmpf') . "/" . rand_str(10);
+							
+							# launch
+							system("vi $t");
+							
+							# get it 
+							$c = file_get($t);
+							
+							# remove
+							`rm $t`;
+							
+						}
+	
+					# open the file
+					my $f = file_get($vff);
+					
+					# append our new stuff
+					my $nf = "Version $v\n$c\n\n".$f;
+					
+					# save it 
+					file_put($vff,$nf);
+				
+					# done
+					# set the new version number
+					$version = $Meta->{version} = $v;
+				
+				}
+				
+			}
+			else {		
+				fail("Package '$pkg' version '$version' already exists");
+			}
+			
 		}
-	}
-
-	# need the changelog
-	unless ( -e $Meta->{changelog} ) {
-		fail("Changelog file ($Meta->{changelog}) does not exist.");
 	}
 	
 	# pass
@@ -871,7 +1167,7 @@ sub create {
 				my $n = basename($item->{src});
 		
 				# dest
-				my $_d = "$d/$n";
+				my $_d = "$d/$n";				
 				
 				# check for append
 				if ( defined $item->{append} && $item->{append} ne "" ) {
@@ -892,6 +1188,8 @@ sub create {
 				# push
 				push(@listing,$_d);
 				
+				my $isSet = 0;
+				
 				# settings
                 if ( defined $item->{settings} && $item->{settings} eq 'true' ) {
                 
@@ -902,11 +1200,14 @@ sub create {
                     # push it 
                     push(@SettingFiles,{'file' => $sfd, 'tmpl' => file_get($item->{src}) });
                     
+                    # isset 
+                    $isSet = 1;
+                    
                 }               
                 
                 # now see what type of build we have
-                if ( $type eq 'symlink' || $type eq 's' ) {
-                    my $_s = getcwd() . "/" . $item->{src};
+                if ( ( $type eq 'symlink' || $type eq 's' ) && $isSet != 1 ) {
+                    my $_s = getcwd() . "/" . $item->{src};				
                     symlink $_s, $_d;
                 }
                 else {	
@@ -988,6 +1289,9 @@ sub create {
 	
 	}
 	
+    # changelog
+	$cl = file_get($pwd.'/'.$Meta->{changelog}) || "";
+	
 	# need to create our own version of the manifest
 	my $manifest = {
 	    'project' => $project,
@@ -998,7 +1302,8 @@ sub create {
 		'set_files' => \@SettingFiles,
 		'commands' => $Commands,
 		'raw' => $man,
-		'changelog' => file_get($Meta->{changelog}),
+		'changelog' => $cl,
+		'depend' => $Depend,
 		'buildenv' => {
 			'user' => $ENV{'USER'},
 			'host' => $ENV{'HOSTNAME'},
@@ -1044,12 +1349,12 @@ sub create {
         `sudo mv $package $pwd`;
     
     }
-    
-    # move back to current
-    chdir $pwd;
 
 	# remove our tmp dir
-	`sudo rm -r $tdir`;	
+	`sudo rm -r $tdir`;
+		
+    # move back to current
+    chdir $pwd;    
 
     # install
     if ( $install ) {
@@ -1058,13 +1363,13 @@ sub create {
         msg("Package Created: $name");
      
         # run install
-        &install($name.".tar.gz");
+        return _do_install($name.".tar.gz");
         
     }
     else {
-
+   
     	# done
-    	fail("Package Created: $name");
+    	return "Package Created: $name";
     	
     }
 
@@ -1072,6 +1377,26 @@ sub create {
 
 # set env vars
 sub set {
+
+	# check for host
+	if ( $options{'host'} ) {
+		
+		# remove host
+		$ocmd =~ s/-h(ost)?=?.*//gi;
+		
+		# host
+		my $h = new drib::host($options{'host'});
+		
+		# cmd
+		$cmd = "sudo drib " . $ocmd;
+		
+		# run the command
+		my ($r,$msg) = $h->cmd($cmd);
+		
+		# tell them
+		fail($msg);
+	
+	}
 
     # packages
 	my $packages = $PACKAGES->all();    
@@ -1088,9 +1413,19 @@ sub set {
             # settings
             my $s = $settings->{$pid};
             
-            # loop and show
-            foreach my $key ( keys %{$s} ) {
-                msg(" $packages->{$pid}->{meta}->{name}.$key: $s->{$key} ");
+            # only show if we have at least one setting
+            if ( $s != 0 && ( ref $s eq "HASH" && scalar(keys %{$s}) > 0 ) ) {
+            
+                # print the package name            
+                msg("$packages->{$pid}->{project}/$packages->{$pid}->{meta}->{name}");
+                    
+                # loop and show
+                foreach my $key ( keys %{$s} ) {
+                    msg(" $key: $s->{$key} ");
+                }
+                
+                msg();
+                
             }
             
         }
@@ -1167,6 +1502,10 @@ sub set {
     
     }
     
+    # regen text files
+    _update_settings_txt_file();
+    
+    # exec post set
     _exec_commands($packages->{$pid},'post-set');
 
 }
@@ -1218,6 +1557,9 @@ sub unset {
     # reset settings
     $SETTINGS->set($pid,$settings);
 
+    # regen text files
+    _update_settings_txt_file();
+
     # done
     unless ($stay) {
         fail("Unset Complete");
@@ -1231,32 +1573,70 @@ sub list {
     # project
     my $project = $options{'project'} || 'all'; 
         
+		# did they give project as a cmd
+		if ( $#cmds != -1 ) {
+			$project = $cmds[0];
+		}
+        
     # get a list of packages
     my $packages = $PACKAGES->all('default');
     
     # array
-    my @a = ();
+	my %projects = ();
+	my $total = 0;
     
     # loop
     foreach my $pid ( keys %{$packages} ) {
     
         # get the package            
         my $p = $packages->{$pid};        
-        
-        # if !project or $project = $pkg project
-        if ( $project eq 'all' || $project eq $p->{project} ) {
-            push (@a,$p);
-        }
+	
+		# either we're showing all
+		# or we aren't showing all and we're showing the package
+		if ( $project eq "all" || ( $project ne 'all' && $project eq $p->{project} ) ) {
+		
+			# push to projects
+			$projects{$p->{project}} = () unless defined $projects{$p->{project}};
+	    
+	    	# add it
+			$projects{$p->{project}}{$pid} = 1;
+	    
+	    	# one more
+	    	$total++;
+	    	
+	    }
     
     }
             
-    # print it 
-    msg("Total of ".($#a+1)." Packages installed.");        
-            
     # print them
-    foreach my $pkg ( @a ) {
-        msg(" $pkg->{project}/$pkg->{meta}->{name}-$pkg->{meta}->{version}");            
+    foreach my $pr ( keys %projects ) {
+
+		# name
+		msg( $pr );
+		
+		# each package
+		foreach my $pid ( keys %{$projects{$pr}} ) {
+		
+			# local
+			my $local = "";
+				
+				# if local
+				if ( defined $packages->{$pid}->{meta}->{local} ) {
+					$local = " (Build: ".$packages->{$pid}->{meta}->{local}.")";
+				}
+	
+		
+			msg(" ".$packages->{$pid}->{meta}->{name}."-".$packages->{$pid}->{meta}->{version}.$local);
+		}
+	
+		msg();
+	
     }
+    
+    # print it 
+    msg("-"x40);
+    msg("Total of $total Packages installed.");     
+    msg();
     
 }
 
@@ -1297,8 +1677,22 @@ sub rm {
     
     }
 
+	# remove the packages
+	_remove(\@packages);
+    
+    # done
+    fail("Packages removed");
+
+}
+
+sub _remove {
+
+	# get packages
+	my ($packages) = @_;
+
+
     # now loop through the packages and remove
-    foreach my $pkg ( @packages ) {
+    foreach my $pkg ( @{$packages} ) {
     
         # get the manifest 
         my $manifest = $PACKAGES->get($pkg->{pid});
@@ -1327,7 +1721,9 @@ sub rm {
             finddepth(sub { rmdir $_ if -d }, $d);
             
             # remove the dir
-            rmdir($d);
+            unless ( $d = ~ /\.svn/i ) {
+            	rmdir($d);
+            }
             
         }
 
@@ -1349,9 +1745,6 @@ sub rm {
         $PACKAGES->unset($pkg->{pid});
     
     }
-    
-    # done
-    fail("Packages removed");
 
 }
 
@@ -1451,5 +1844,71 @@ sub _exec_commands {
     
     # go back
     chdir($pwd);
+
+}
+
+# update the txt settings ifle
+sub _update_settings_txt_file {
+
+	# file
+	$txt = "";
+
+    # packages
+	my $packages = $PACKAGES->all();    
+
+    # get all settings
+    my $settings = $SETTINGS->all();
+
+    # print them
+    foreach my $pid ( keys %{$packages} ) {
+        
+        # settings
+        my $s = $settings->{$pid};
+        
+        # only show if we have at least one setting
+        if ( $s != 0 && ( ref $s eq "HASH" && scalar(keys %{$s}) > 0 ) ) {
+        
+   
+            # loop and show
+            foreach my $key ( keys %{$s} ) {
+                
+				# set it 
+				$txt .= $packages->{$pid}->{project}."_".$packages->{$pid}->{meta}->{name}."__".$key."|".$s->{$key}."\n";
+                
+            }
+		
+        }
+        
+    }	
+
+	# save it
+	file_put("/usr/var/drib/settings.txt",$txt);
+
+}
+
+
+# unpack 
+sub _unpack_package_tar {
+
+	# tar
+	my ($file) = @_;
+
+	# make a tmp dir
+	my $tdir = $CONFIG->get('tmpf') . "/" . rand_str(10);
+	
+	# make it 
+	`sudo mkdir $tdir`;
+	
+	# save the file to tdir 
+	file_put($tdir."/pkg",$file);
+	
+	# now move into the tmp dir 
+	chdir $tdir;
+	
+	# untar the file
+	`sudo tar -xzf pkg`;
+	
+	# open our manifest
+	return from_json( file_get($tdir.'/.manifest') );
 
 }

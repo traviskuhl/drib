@@ -13,10 +13,12 @@ package drib::utils;
 
 use Data::Dumper;
 use JSON;
+use File::Glob ':glob';
 use base qw(Exporter);
 
 
 our @EXPORT = qw(
+	search_dir
 	trim
 	file_get
 	file_put
@@ -28,8 +30,27 @@ our @EXPORT = qw(
 	in_array
 	plural
 	ask
-	versioncmp
+	incr_version
+	versioncmp	
 );
+
+sub search_dir {
+
+	# dir and glob
+	my $dir = shift;
+	my $name = shift;
+	my @found = ();
+	
+	# act
+	my $act = "find $dir -name '$name'";
+	
+	# glob me
+	my @f = split(/\n/,`$act`);
+	
+	# return 
+	return \@f;
+
+}
 
 sub trim {
 	my $string = shift;
@@ -149,6 +170,23 @@ sub ask {
     
 }
 
+sub incr_version {
+	
+	my $v = shift;
+	
+	# split into parts
+	my @p = split(/\./,$v);
+	
+	# take the last and up it 
+	my $l = pop(@p);
+
+	# push back on
+	push @p, ($l+1);
+
+	# rejoin
+	return join('.',@p);
+
+}
 
 # --- copied from: Sort::Versions    ---
 # --- below copyright applies to END ---
