@@ -1,0 +1,10 @@
+packaging and distribution platform for web developers
+
+perl/drib
+ * main drib package written in perl
+
+apache/mod_drib
+ * includes 
+
+svn 
+ * run drib build on svn checkin
