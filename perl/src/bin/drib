@@ -152,6 +152,15 @@ my $Commands = {
             'yes' => 'yes|y',
             'unset' => 'unset|u',
         }
+    },
+    
+    # !build
+    'build' => {
+		'func' => \&build,    
+		'help' => "Build several packages based on a given build manifest",
+		'opts' => {
+		
+		}    
     }
 	
 };
@@ -243,7 +252,14 @@ $Commands->{$act}->{func}();
 # done
 exit 1;
 
-# help
+
+
+
+
+
+###############################################################
+### @brief display help information
+###############################################################
 sub help {
 
     # check if we want to show the version
@@ -296,7 +312,11 @@ sub help {
 
 }
 
-# setup
+
+###############################################################
+### @brief setup the env for drib
+###		   and create the nneed files
+###############################################################
 sub setup {
 
 	# what we need
@@ -367,7 +387,10 @@ sub setup {
         
 }
 
-# config
+
+###############################################################
+### @brief set or display config variables
+###############################################################
 sub config {
 
     # if no commands they must want to view the corrent setings
@@ -398,6 +421,10 @@ sub config {
 
 }
 
+
+###############################################################
+### @brief command line install of package(s)
+###############################################################
 sub install {
 
 	# need a package name
@@ -416,7 +443,13 @@ sub install {
 	
 }
 
-# _do_install
+
+###############################################################
+### @brief inernal install function.
+###
+### @param $pkg_file package file (package name|tar)
+### @return string with result message
+###############################################################
 sub _do_install {
 	
 	# given a file
@@ -750,10 +783,11 @@ sub _do_install {
 	
 }
 
-sub create {
 
-	# given a file
-	my ($pkg_file) = @_;
+###############################################################
+### @brief command line to create a package
+###############################################################
+sub create {
 	
 	# file
 	my @file = ();
@@ -791,12 +825,17 @@ sub create {
 		if ( lc(substr($r,0,1)) eq "y" ) {
 			
 			# search the directory
-			@file = @{search_dir($pwd,"*.pkg")};
+			foreach my $f ( @{search_dir($pwd,"*.pkg")} ) {
+				my @n = split(/\//,$f);
+			
+				if ( lc(substr(ask(" Build $n[$#n] [y]:"),0,1)) ne 'n' ) {
+					push(@file,$f);
+				}
+			}
 			
 		}
 		
 	}
-	
 		
 	# make sure we have a file
 	if ( $#file == -1 ) {
@@ -810,7 +849,14 @@ sub create {
 	
 }
 
-# do create
+
+
+###############################################################
+### @brief internal create function
+###
+### @param $file path to manifest file
+### @return result string
+###############################################################
 sub _do_create {
 
 	my ($file) = @_;
@@ -1375,7 +1421,10 @@ sub _do_create {
 
 }
 
-# set env vars
+
+###############################################################
+### @brief set or display a list of settings
+###############################################################
 sub set {
 
 	# check for host
@@ -1510,7 +1559,15 @@ sub set {
 
 }
 
-# unet
+
+###############################################################
+### @brief unset a package setting
+###
+### @param $pid package id
+### @param $var name of variable to unset
+### @param $stay do not fail after complete
+### @return void
+###############################################################
 sub unset {
 
     # check if it's an internal call
@@ -1567,7 +1624,10 @@ sub unset {
 
 }
 
-# list
+
+###############################################################
+### @brief list packages installed
+###############################################################
 sub list {
     
     # project
@@ -1640,7 +1700,10 @@ sub list {
     
 }
 
-# remove
+
+###############################################################
+### @brief command line remove a package(s)
+###############################################################
 sub rm {
 
     # no packages?
@@ -1685,6 +1748,79 @@ sub rm {
 
 }
 
+
+###############################################################
+### @brief build a package
+###############################################################
+sub build {
+
+	# open the build file
+    if ( $#cmds == -1 ) {
+        fail("You must provide a build file");
+    }
+    
+	# where are we now
+	my $pwd = getcwd();    		
+
+	# open the manifest
+	my $man = file_get($cmds[0]);
+
+	# save the man as a tmp file
+	my $tmp = $CONFIG->get('tmpf') . "/" . rand_str(5);	
+	
+	# put the man
+	file_put($tmp,$man);
+		
+	# what we need
+	our $name = 0;
+	our $branch = 'current';
+	our $packages = 0;
+	
+	# try to include the file
+	eval {
+		do "$tmp";
+	};
+	
+	# need at least packages
+	if ( $packages == 0 ) {
+		fail("Need to provide a list of packages to build");
+	}
+	
+	# username
+	my $u = $ENV{'SUDO_USER'};		
+	my $p = ask("SVN Password:",1);
+	
+	# try to open the build file
+	my $builds = file_get(".$name") || {};
+	
+	# lets look at each package
+	# and check the svn status to
+	# see if anything has changed since we last build 
+	foreach my $pkg ( @{$packages} ) {
+		
+		# path
+		my $path = trim($pkg->{root}) . "/" . trim($pkg->{src});
+		
+		# move into path
+		chdir($path);
+		
+		# get the status of src
+		my $stat = `svn --username='$u' --password='$p' status -u .`;
+		
+		print $stat; die;
+		
+	}
+
+}
+
+
+
+###############################################################
+### @brief internal remove function
+###
+### @param $packages hash of packages to remove
+### @return void
+###############################################################
 sub _remove {
 
 	# get packages
@@ -1748,6 +1884,14 @@ sub _remove {
 
 }
 
+
+###############################################################
+### @brief create a package id
+###
+### @param $project name of project
+### @param $name name of the pakcage
+### @return md5 hash of package id
+###############################################################
 sub _get_pid {
     
     # project
@@ -1759,6 +1903,17 @@ sub _get_pid {
 
 }
 
+
+###############################################################
+### @brief parse input for project, package, version, pid
+###
+### @param $name string of input
+### @return HASH {  name => pacakge name
+###					project => project name
+###					version => version number or branch
+###					pid => package id
+###				 }
+###############################################################
 sub _parse_pkg_name {
     
     # get the raw package name
@@ -1786,7 +1941,14 @@ sub _parse_pkg_name {
 
 }
 
-# _write_settings_files
+
+###############################################################
+### @brief write given settings to a file
+### 
+### @param $files list of files to update
+### @param $settings settings to write
+### @return void
+###############################################################
 sub _write_settings_files {
     
     # what 
@@ -1814,7 +1976,10 @@ sub _write_settings_files {
 
 }
 
-# _exec_commands
+
+###############################################################
+### @brief execute post install commands
+###############################################################
 sub _exec_commands {
 	
 	# pwd
@@ -1847,7 +2012,10 @@ sub _exec_commands {
 
 }
 
-# update the txt settings ifle
+
+###############################################################
+### @brief update settings txt file
+###############################################################
 sub _update_settings_txt_file {
 
 	# file
@@ -1887,7 +2055,9 @@ sub _update_settings_txt_file {
 }
 
 
-# unpack 
+###############################################################
+### @brief unpack a package tar
+###############################################################
 sub _unpack_package_tar {
 
 	# tar
