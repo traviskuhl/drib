@@ -183,6 +183,7 @@ unless ( $act eq 'setup' || $act eq 'config' ) {
     $CONFIG     = new drib::db('config',$var);	  
     $PACKAGES   = new drib::db('packges',$var);
 	$SETTINGS   = new drib::db('settings',$var);
+	$CRONS 	  	= new drib::db('crons',$var);
 	
     # figure our what dist package to use
     my $mod = $CONFIG->get('dist') || "drib::dist::drib";
@@ -772,6 +773,26 @@ sub _do_install {
     # perform set file updates
     _write_settings_files($manifest->{set_files},$curset);
 
+	# cron 
+	if ( $manifest->{crons} ) {
+
+		# crons 
+		my @crons = ();
+
+		# loop me
+		foreach my $c ( @{$manifest->{crons}} ) { 
+			push(@crons,$c->{cmd});
+		}	
+
+		# add to package list
+		$CRONS->set($pid,\@crons);
+	
+		# update
+		_rebuild_crons();
+	
+	}
+
+
     # cleanup our tmp dir
     `sudo rm -fr $tdir`;    
     
@@ -904,6 +925,7 @@ sub _do_create {
 	our $Commands = 0;
 	our $Apache = 0;
 	our $Depend = 0;
+	our $Cron = 0;
 	
 	# try to include the file
 	eval {
@@ -1346,6 +1368,7 @@ sub _do_create {
 		'secure' => $Meta->{secure},
 		'set' => $Set,
 		'set_files' => \@SettingFiles,
+		'crons' => $Cron,
 		'commands' => $Commands,
 		'raw' => $man,
 		'changelog' => $cl,
@@ -1879,8 +1902,14 @@ sub _remove {
         
         # now remove the package from the packages db
         $PACKAGES->unset($pkg->{pid});
+        
+        # remove crons
+        $CRONS->unset($pkg->{pid});
     
     }
+
+	# rebuild crons
+	_rebuild_crons();
 
 }
 
@@ -2081,4 +2110,42 @@ sub _unpack_package_tar {
 	# open our manifest
 	return from_json( file_get($tdir.'/.manifest') );
 
+}
+
+###############################################################
+### @brief unpack a package tar
+###############################################################
+sub _rebuild_crons {
+
+	# get a crons
+	my $crons = $CRONS->all();    	
+	
+	# file
+	my $file = "";
+	
+	# get each package and 
+	foreach my $pkg ( keys %{$crons} ) {
+		foreach $cron ( @{$crons->{$pkg}} ) {
+			$file .= $cron."\n";
+		}
+	}
+
+	# save as tmp
+	my $tmp = $CONFIG->get('tmpf') . "/" . rand_str(10);
+
+	# put into tmp
+	file_put($tmp,$file);
+
+	# blast away the cron file
+	`crontab -u root -r`;
+
+	# set our new one
+	`crontab -u root $tmp`;
+	
+	# no more temo
+	`rm $tmp`;
+
+	# done
+	return true;
+		
 }
