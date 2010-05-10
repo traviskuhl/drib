@@ -35,7 +35,7 @@ file_put("$tmp/bin/drib",$file);
 # move others
 `cp -r ../src/lib $tmp`;
 `mkdir $tmp/var`;
-`cp ./Makefile.PL $tmp`;
+`cp ./Makefile.PL.tmpl $tmp/Makefile.PL`;
 
 # where 
 my $pwd = getcwd();
@@ -45,6 +45,9 @@ chdir($tmp."/..");
 
 # tar it
 `tar -cf $name ./drib`;
+
+# copy to pub
+`cp $name /home/drib/share/htdocs/pub/drib`;
 
 # now move it to builds
 `mv $name $pwd/archive`;
