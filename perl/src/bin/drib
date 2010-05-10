@@ -200,6 +200,7 @@ unless ( $act eq 'setup' || $act eq 'config' ) {
         $CONFIG->save() if $CONFIG;
         $PACKAGES->save() if $PACKAGES;
         $SETTINGS->save() if $SETTINGS;
+        $CRONS->save() if $CRONS;
     }
 	
 }

@@ -4,7 +4,4 @@ perl/drib
  * main drib package written in perl
 
 apache/mod_drib
- * includes 
-
-svn 
- * run drib build on svn checkin
+ * adds drib package settings to the apache env 
