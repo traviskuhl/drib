@@ -35,6 +35,14 @@ use drib::external;
 use drib::db;
 use drib::host;
 
+# out of the box parsers
+my %Parsers = (
+	'dpf'	=> "drib::parser::txt",		# drib package file
+	'dppf'	=> "drib::parser::perl",	# drib perl package file
+	'djpf'	=> "drib::parser::json",	# drib json package file
+	'pkg'	=> "drib::parser::perl"		# for backwards compatability
+);
+
 # act 
 my $act = 'help';
 
@@ -165,11 +173,12 @@ my $Commands = {
 	
 };
 
-my $CONFIG = 0;
-my $DIST = 0;
-my $PACKAGES = 0;
-my $SETTINGS = 0;
-
+# holders
+my $CONFIG		= 0;
+my $DIST		= 0;
+my $PACKAGES	= 0;
+my $SETTINGS	= 0;
+my $CRONS		= 0;
 
 # if we self-install, we don't need
 # dist or config, mostly because it doesn't 
@@ -917,34 +926,26 @@ sub _do_create {
 
 	# put the man
 	file_put($tmp,$man);
+
+	# pick a parser
+	my ($parser,$pfile) = _pick_parser($file);
+	
+	# use 
+	require "$pfile";
+		
+	# parse me 
+	my $p = $parser->parse($tmp);
 	
 	# what we need 
-	our $Meta = 0;
-	our $Set = 0;
-	our $Dirs = 0;
-	our $Files = 0;
-	our $Commands = 0;
-	our $Apache = 0;
-	our $Depend = 0;
-	our $Cron = 0;
-	
-	# try to include the file
-	eval {
-		do "$tmp";
-	};
-	
-	# don't need the file anymore
-	unlink $tmp;
-	
-	# if we couldn't we need to fail
-	if ($@) {
-		fail("Could not parse the Build Manifest");
-	}	
-		
-	# make sure we have what we need
- 	if ( $Meta == 0) {
- 		fail("Meta variable not defined in Build Manifest");
- 	}
+	# this is just to keep backwards compatable 
+	# with perl parser
+	our $Meta = $p->{meta};
+	our $Set = $p->{set};
+	our $Dirs = $p->{dirs};
+	our $Files = $p->{files};
+	our $Commands = $p->{cmd};
+	our $Depend = $p->{depend};
+	our $Cron = $p->{cron};
 
 	# we need the package name
 	my $pkg = $Meta->{name};
@@ -1363,17 +1364,17 @@ sub _do_create {
 	
 	# need to create our own version of the manifest
 	my $manifest = {
-	    'project' => $project,
-		'type' => $type,	
-		'meta' => $Meta,
-		'secure' => $Meta->{secure},
-		'set' => $Set,
-		'set_files' => \@SettingFiles,
-		'crons' => $Cron,
-		'commands' => $Commands,
-		'raw' => $man,
-		'changelog' => $cl,
-		'depend' => $Depend,
+	    'project'	=> $project,
+		'type'		=> $type,	
+		'meta'		=> $Meta,
+		'secure'	=> $Meta->{secure},
+		'set'		=> $Set,
+		'set_files'	=> \@SettingFiles,
+		'crons'		=> $Cron,
+		'commands'	=> $Commands,
+		'raw'		=> $man,
+		'changelog'	=> $cl,
+		'depend'	=> $Depend,
 		'buildenv' => {
 			'user' => $ENV{'USER'},
 			'host' => $ENV{'HOSTNAME'},
@@ -2149,4 +2150,34 @@ sub _rebuild_crons {
 	# done
 	return true;
 		
+}
+
+
+###############################################################
+### @brief pick the parser to use
+###############################################################
+sub _pick_parser {
+
+	# file
+	my $file = shift;
+
+	# parser
+	my @parts = split(/\./,$file);
+
+	# get the exension
+	my $ext = pop(@parts);
+
+	# does this exist in the parsers array
+	if ( defined $Parsers{$ext} ) {
+		
+		# file 
+		my $pf = $Parsers{$ext};
+		   $pf =~ s/\:\:/\//g;
+		
+		# giver 
+		return ($Parsers{$ext},$pf.".pm");
+		
+	}
+	
+
 }
