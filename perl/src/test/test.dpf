@@ -1,0 +1,31 @@
+set test hello
+
+# internal vars
+$src = ../src
+$dest = /home/bolt/share/htdocs/test
+
+# meta data
+meta NAME=test
+meta VERSION=1.0
+meta SUMMARY=This is my summary
+meta DESCRIPTION=This is my long description
+mata CHANGELOG=changelog
+
+# settings
+
+set world yes
+
+# directory
+dir - - - /home/test 
+
+# file,find,glob
+file - - - $dest ./test.html
+find - - - /home/test ./ -depth -name "*.html"
+
+
+# settings file
+settings /home/test/text.conf ./test.conf
+
+# commands
+command pre-install "echo 'hello'";
+command post-install "echo 'hello'";
