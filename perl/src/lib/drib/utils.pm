@@ -20,6 +20,7 @@ use base qw(Exporter);
 our @EXPORT = qw(
 	search_dir
 	trim
+	ws_trim
 	file_get
 	file_put
 	fail
@@ -58,6 +59,13 @@ sub trim {
 	if ( $both  ) {
     	$string =~ s/^\///;
     }
+    $string =~ s/\/$//;
+	return $string;	
+}
+
+sub ws_trim {
+	my $string = shift;
+	$string =~ s/^\///;
     $string =~ s/\/$//;
 	return $string;	
 }

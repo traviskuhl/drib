@@ -22,7 +22,7 @@ our @EXPORT = qw(
 );
 
 # this is the exension
-our $EXENSION = ".pkg";
+our $EXENSION = "pkg";
 
 sub parse {
 

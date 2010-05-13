@@ -37,7 +37,7 @@ use drib::host;
 
 # out of the box parsers
 my %Parsers = (
-	'dpf'	=> "drib::parser::txt",		# drib package file
+	'dpf'	=> "drib::parser::text",	# drib package file
 	'dppf'	=> "drib::parser::perl",	# drib perl package file
 	'djpf'	=> "drib::parser::json",	# drib json package file
 	'pkg'	=> "drib::parser::perl"		# for backwards compatability
@@ -115,11 +115,10 @@ my $Commands = {
         'help' => "Create a package",
         'opts' => {
             'project'=>'project|p=s',
-            'branch'=>'branch|b=s',
-            'install'=>'install|i',
-            'type'=>'type|t=s',
-            'dist'=>'dist!',
-            'cleanup'=>'cleanup|c'                    
+            'install'=>'install|i',            
+            'dist'=>'dist|d',
+            'cleanup'=>'cleanup|c',
+            'type'=>'type|t=s',                
         }        
     },
     
@@ -162,12 +161,20 @@ my $Commands = {
         }
     },
     
+    # !dist
+    'dist' => {
+    	'func' => \&dist,
+    	'help' => "Send a package to dist",
+    	'opts' => {
+            'branch'=>'branch|b=s',	
+    	}
+    },
+    
     # !build
     'build' => {
 		'func' => \&build,    
 		'help' => "Build several packages based on a given build manifest",
-		'opts' => {
-		
+		'opts' => {		
 		}    
     }
 	
@@ -826,11 +833,8 @@ sub create {
 	# where are we now
 	my $pwd = getcwd();    	
 	
-	# what up
-	if ( $pkg_file ) {
-	   push(@file,$pkg_file);
-	}
-	elsif ($#cmds != -1) {
+	# package files
+	if ($#cmds != -1) {
 		push(@file,$cmds[0]);
 	}
 	else {
@@ -870,7 +874,7 @@ sub create {
 		
 	# make sure we have a file
 	if ( $#file == -1 ) {
-		fail("No Build Manifest given");
+		fail("No Package file given.");
 	}
 	
 	# do create
@@ -1101,9 +1105,36 @@ sub _do_create {
 	# now create and dirs they want
 	if ( $Dirs != 0 ) {
 		foreach my $dir ( @{$Dirs} ) {
-			my $d = $tdir . "/" . trim($dir,1);
+		
+			# ref
+			unless ( ref($dir) eq "HASH" ) {
+				$dir = { 'dir' => $dir };
+			}
+		
+			# name		
+			my $d = $tdir . "/" . trim($dir->{dir},1);
+			
+			# mkdir 
 			`sudo mkdir -p $d`;
+
+				# if user
+				if ( defined $dir->{user} ) {
+					`sudo chown $dir->{user} $d`;
+				}
+				
+				# group
+				if ( defined $dir->{group} ) {
+					`sudo chown :$dir->{group} $d`;
+				}
+				
+				# mode
+				if ( defined $dir->{mode} ) {
+					`sudo chmod $dir->{mode} $d`;
+				}
+
+			# add listing
 			push(@listing,$d);
+			
 		}
 	}
 	
@@ -1297,7 +1328,7 @@ sub _do_create {
 				# mode
 				if ( defined $item->{mode} ) {
 					`sudo chmod $item->{mode} $_d`;
-				}				
+				}
 		
 		        # rename
 		        if ( defined $item->{rename} ) {
@@ -1395,37 +1426,22 @@ sub _do_create {
 	# package
 	my $package = "$tdir/$pkg-$version.tar.gz";
 
-	# now send our file to dist
-	if ( $type eq 'release' && $dist == 1 ) {
-    	$r = $DIST->upload({
-    	   'project' => $project,
-    	   'username' => $CONFIG->get('username'),
-    	   'name' => $pkg,
-    	   'version' => $version,
-    	   'branch' => $branch,
-    	   'tar' => file_get($package)
-        });
-        
-        # no r
-        if ( $r != 1 ) {
-        	fail("Could not upload package to Dist.\n Error: ".$DIST->error());
-        }
-        
-    }
-    
     # or move the file back to the pwd 
-    else {
-    
-        # put package in this directory
-        `sudo mv $package $pwd`;
-    
-    }
+	`sudo mv $package $pwd`;
 
 	# remove our tmp dir
 	`sudo rm -r $tdir`;
 		
     # move back to current
     chdir $pwd;    
+	
+	# dist
+	if ( $dist == 1 ) {
+	
+		# we want to do dist
+		_do_dist($package);
+	
+	}
 
     # install
     if ( $install ) {
@@ -1770,6 +1786,91 @@ sub rm {
     
     # done
     fail("Packages removed");
+
+}
+
+
+###############################################################
+### @brief comand line idst
+###############################################################
+sub dist {
+
+    # no packages?
+    if ( $#cmds == -1 ) {
+        fail("You must provide at lease one package to dist.");
+    }
+	
+	# where are we now
+	my $pwd = getcwd();    	
+	
+	# package files
+	if ($#cmds != -1) {
+		push(@file,$cmds[0]);
+	}
+	else {
+	
+		# open the directory and see if there's a pkg file	
+		opendir(my $dh, $pwd);
+		my @files = grep { $_ =~ /\.tar\.gz/ } readdir($dh);
+		closedir $dh;
+		
+		# if yes set as file
+		if ( $#files != -1 ) {
+			@file = @files;
+		}
+
+	}
+	
+	# still no file 
+	if ( $#file == -1 ) {
+		
+		my $r = ask("Would you like to recursivly dist all package files in this directory. [n]");
+		
+		# ask if they want to build the directory
+		if ( lc(substr($r,0,1)) eq "y" ) {
+			
+			# search the directory
+			foreach my $f ( @{search_dir($pwd,"*.tar.tz")} ) {
+				my @n = split(/\//,$f);
+			
+				if ( lc(substr(ask(" Build $n[$#n] [y]:"),0,1)) ne 'n' ) {
+					push(@file,$f);
+				}
+			}
+			
+		}
+		
+	}
+		
+	# make sure we have a file
+	if ( $#file == -1 ) {
+		fail("No Build Manifest given");
+	}
+	
+	# do create
+	foreach my $f (@file) {
+		msg(&_do_dist($f));
+	}
+	
+
+}
+
+###############################################################
+### @brief command line remove a package(s)
+###############################################################
+sub _do_dist {
+
+	# package file to send to dist
+	my $pkg = @_;
+	
+	$r = $DIST->upload({
+	   'project' => $project,
+	   'username' => $CONFIG->get('username'),
+	   'name' => $pkg,
+	   'version' => $version,
+	   'branch' => $branch,
+	   'tar' => file_get($pkg)
+    });	
 
 }
 
