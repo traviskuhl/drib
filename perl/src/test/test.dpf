@@ -1,30 +1,42 @@
-set test hello
 
 # internal vars
-$src = ../src
-$dest = /home/bolt/share/htdocs/test
+src = ./
+dest = /home/bolt/share/htdocs/test
+
 
 # meta data
-meta NAME=test
-meta VERSION=1.0
-meta SUMMARY=This is my summary
-meta DESCRIPTION=This is my long description
-mata CHANGELOG=changelog
+meta NAME = test
+meta VERSION = 1.0
+meta SUMMARY = This is my summary
+meta DESCRIPTION = This is my long description
+meta CHANGELOG = changelog
 
-# settings
 
+# depends
+depend external/php_zend	- -
+# depend drib/drib			1 99999
+
+
+#set 
 set world yes
+set test hello
+
 
 # directory
 dir - - - /home/test 
 
+
 # file,find,glob
-file - - - $dest ./test.html
-find - - - /home/test ./ -depth -name "*.html"
+file - - - $(dest) ./test.html
+find - - - /home/test $(src) -depth -name "*.html"
 
 
 # settings file
 settings /home/test/text.conf ./test.conf
+
+
+# cron
+#cron 59 * * * * /home/bolt/libexec/platform/ingest/kickoff.php > /home/bolt/logs/platform/ingest/last.log
 
 # commands
 command pre-install "echo 'hello'";

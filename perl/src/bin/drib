@@ -931,33 +931,25 @@ sub _do_create {
 	# put the man
 	file_put($tmp,$man);
 	
+	# pick a parser
+	my ($parser,$pfile) = _pick_parser($file);
+
+	# use 
+	require "$pfile";
+
+	# parse me 
+	my $p = $parser->parse($tmp);
+
 	# what we need 
-	our $Meta = 0;
-	our $Set = 0;
-	our $Dirs = 0;
-	our $Files = 0;
-	our $Commands = 0;
-	our $Apache = 0;
-	our $Depend = 0;
-	our $Cron = 0;
-	
-	# try to include the file
-	eval {
-		do "$tmp";
-	};
-	
-	# don't need the file anymore
-	unlink $tmp;
-	
-	# if we couldn't we need to fail
-	if ($@) {
-		fail("Could not parse the Build Manifest");
-	}	
-		
-	# make sure we have what we need
- 	if ( $Meta == 0) {
- 		fail("Meta variable not defined in Build Manifest");
- 	}
+	# this is just to keep backwards compatable 
+	# with perl parser
+	my $Meta		= $p->{meta};
+	my $Set 		= $p->{set};
+	my $Dirs 		= $p->{dirs};
+	my $Files		= $p->{files};
+	my $Commands	= $p->{cmd};
+	my $Depend 		= $p->{depend};
+	my $Cron 		= $p->{cron};
 
 	# we need the package name
 	my $pkg = $Meta->{name};
@@ -2259,4 +2251,33 @@ sub _rebuild_crons {
 	# done
 	return true;
 		
+}
+
+###############################################################
+### @brief pick the parser to use
+###############################################################
+sub _pick_parser {
+
+	# file
+	my $file = shift;
+
+	# parser
+	my @parts = split(/\./,$file);
+
+	# get the exension
+	my $ext = pop(@parts);
+
+	# does this exist in the parsers array
+	if ( defined $Parsers{$ext} ) {
+
+		# file 
+		my $pf = $Parsers{$ext};
+		   $pf =~ s/\:\:/\//g;
+
+		# giver 
+		return ($Parsers{$ext},$pf.".pm");
+
+	}
+
+
 }

@@ -65,8 +65,8 @@ sub trim {
 
 sub ws_trim {
 	my $string = shift;
-	$string =~ s/^\///;
-    $string =~ s/\/$//;
+	$string =~ s/^\s+//;
+    $string =~ s/\s$//;
 	return $string;	
 }
 

@@ -30,33 +30,46 @@ sub parse {
 	# file to parse
 	my ($self,$tmp) = @_;
 	
-	# what we need 
-	our $Meta = 0;
-	our $Set = 0;
-	our $Dirs = 0;
-	our $Files = 0;
-	our $Commands = 0;
-	our $Depend = 0;
-	our $Cron = 0;
-	
-	# vars
-	my %vars = ();
-	
 	# open the tfile
 	my $file = file_get($tmp);
 	
-
-
-	print Dumper($Commands); die;
-
-}
-
-sub _parselines {
-
 	# no more than 2 space
 	$file =~ s/\t/ /g;	
 	$file =~ s/( )+/ /g;
-	$file =~ s/\n\n/\n/g;
+	$file =~ s/\n\n/\n/g;	
+	
+	# first pass at parsing
+	my $o = _parse($file,1);
+
+	# replace vars
+	foreach my $key ( keys %{$o->{vars}}  ) {
+		
+		my $val = $o->{vars}{$key};
+		
+		# repalce
+		$file =~ s/\$\($key\)/$val/g;
+	
+	}
+
+	# reparse and return
+	return _parse($file);
+
+}
+
+sub _parse {
+
+	# file
+	my ($file) = @_;
+
+	# what we need 
+	my $Meta = 0;
+	my $Set = 0;
+	my $Dirs = 0;
+	my $Files = 0;
+	my $Commands = 0;
+	my $Depend = 0;
+	my $Cron = 0;
+	my %vars = ();
 
 	# split on new lines
 	my @lines = split(/\n/,$file);
@@ -197,14 +210,40 @@ sub _parselines {
 		
 		}
 		
+		# depend
+		elsif ( $act =~ /depends?/i ) {
+			
+			# depend
+			$Depend = [] if $Depend == 0;
+		
+			# pakage
+			my $pkg = $lw[1];
+			my $min = $lw[2] || '0';
+			my $max = $lw[3] || '999999999';
+		
+			# add 
+			push(@$Depend,{'pkg'=>$pkg,'min'=>$min,'max'=>$max});
+		
+		}
+		
+		# cron
+		elsif ( $act =~ /cron/i ) {
+			
+			# zero
+			$Cron = [] if $Cron == 0;
+		
+			# add it 
+			push(@$Cron,{'cmd'=>$mline});
+		
+		}
+		
 		# var
-		elsif ( substr($act,0,1) eq '$' ) {
+		elsif ( index($mline,'=') != -1 ) {
 			
 			# split on =
-			my($throw,$val) = split(/=/,$mline);
+			my($key,$val) = split(/=/,join(' ',@lw));			
 			
 			# trim
-			$key = substr($act,1);
 			$key = ws_trim($key);
 			$val = ws_trim($val);
 			
@@ -212,23 +251,18 @@ sub _parselines {
 			$vars{$key} = $val;
 		
 		}
-
-		# var
-		elsif ( substr($act,0,1) eq '$' ) {
-			
-			# split on =
-			my($throw,$val) = split(/=/,$mline);
-			
-			# trim
-			$key = substr($act,1);
-			$key = ws_trim($key);
-			$val = ws_trim($val);
-			
-			# send to vars
-			$vars{$key} = $val;
-		
-		}		
 		
 	}
+
+	return {
+ 		'meta'		=> $Meta,
+ 		'set'		=> $Set,
+ 		'dirs'		=> $Dirs,
+ 		'files' 	=> $Files,
+ 		'cmd' 		=> $Commands,
+		'depend'	=> $Depend,
+		'cron'		=> $Cron,
+		'vars'		=> \%vars
+	};
 
 }
