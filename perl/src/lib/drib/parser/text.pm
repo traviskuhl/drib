@@ -168,7 +168,14 @@ sub _parse {
 		
 			# what to add as 
 			if ( $act eq 'find' ) {
-				$f->{'find'} = join(' ',splice(@lw,5));
+			
+				# root
+				$f->{'root'} = $lw[5];			
+			
+				# find 
+				$f->{'find'} = join(' ',splice(@lw,5));				
+
+				
 			}
 			else {
 				$f->{'src'} = $lw[5];
@@ -266,3 +273,5 @@ sub _parse {
 	};
 
 }
+
+return 1;

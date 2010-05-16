@@ -71,3 +71,5 @@ sub parse {
 	return $o;
 
 }
+
+return 1;
