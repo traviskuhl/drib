@@ -185,7 +185,7 @@ my $CONFIG = 0;
 my $DIST = 0;
 my $PACKAGES = 0;
 my $SETTINGS = 0;
-
+my $CRONS = 0;
 
 # if we self-install, we don't need
 # dist or config, mostly because it doesn't 
@@ -841,7 +841,7 @@ sub create {
 	
 		# open the directory and see if there's a pkg file	
 		opendir(my $dh, $pwd);
-		my @files = grep { $_ =~ /\.pkg/ } readdir($dh);
+		my @files = grep { $_ =~ /\.(pkg|dpf|djpf)/ } readdir($dh);
 		closedir $dh;
 		
 		# if yes set as file
