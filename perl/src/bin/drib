@@ -1426,6 +1426,29 @@ sub _do_create {
 	# package
 	my $package = "$tdir/$pkg-$version.tar.gz";
 
+	
+	# dist
+	if ( $type eq 'release' && $dist == 1 ) {
+	
+    	$r = $DIST->upload({
+    	   'project' => $project,
+    	   'username' => $CONFIG->get('username'),
+    	   'name' => $pkg,
+    	   'version' => $version,
+    	   'branch' => $branch,
+    	   'tar' => file_get($package)
+        });
+        
+        # no r
+        if ( $r != 1 ) {
+        	fail("Could not upload package to Dist.\n Error: ".$DIST->error());
+        }	
+	
+		# we want to do dist
+	#	_do_dist($package);
+	
+	}
+	
     # or move the file back to the pwd 
 	`sudo mv $package $pwd`;
 
@@ -1433,15 +1456,7 @@ sub _do_create {
 	`sudo rm -r $tdir`;
 		
     # move back to current
-    chdir $pwd;    
-	
-	# dist
-	if ( $dist == 1 ) {
-	
-		# we want to do dist
-		_do_dist($package);
-	
-	}
+    chdir $pwd;    	
 
     # install
     if ( $install ) {

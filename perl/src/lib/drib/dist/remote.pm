@@ -179,7 +179,7 @@ sub upload {
 	my $tmp = $self->{config}->get('tmpf') . "/" . rand_str(10);			
 	
 	# save it 
-	file_put($tmp,$tar);
+	file_put($tmp,$tar);	
 			
 	# put the filder
 	$self->{ssh}->put($tmp, $folder . "/" . $pkg . "-" . $version . ".tar.gz", perm=>0777 );			
