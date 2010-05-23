@@ -455,7 +455,7 @@ sub install {
 		my $r = _do_install( $p );
 			
 		# tell them we're done
-		msg($r);		
+		msg($r->{response});		
 	
 	}
 	
@@ -493,10 +493,16 @@ sub _do_install {
 		
 		# tell them
 		if ( $r ) {
-			return "$pkg_file was installed on $options{'host'}";
+			return {
+				"code" => 200,
+				"response" => "$pkg_file was installed on $options{'host'}",
+			}
 		}
 		else {
-			return "$pkg_file could not be installed on $options{'host'}";
+			return {
+				"code" => 400,
+				"response" => "$pkg_file could not be installed on $options{'host'}"
+			};
 		}
 	
 	}
@@ -514,7 +520,10 @@ sub _do_install {
 	    
         # where
         unless ( -e "./$pkg_file" ) {
-            fail("Package file $pkg_file does not exists");
+            return {
+            	"code" => 404,
+            	"response" => "Package file $pkg_file does not exists"
+            };
         }
      
         # get it 
@@ -526,7 +535,10 @@ sub _do_install {
         }
         
         # manifest
-        $manifest = _unpack_package_tar($file);
+        my $r = _unpack_package_tar($file);
+        
+        # save it
+        $manifest = $r->{manifest};
         
         # local
         $local = $pkg_file;
@@ -550,7 +562,7 @@ sub _do_install {
         if ( in_array(\@external::PROJECTS,$project) ) {
         
             # what happeend
-            return  &external::_map($project,$pkg,$version);
+            return &external::_map($project,$pkg,$version);
             
         }    
     
@@ -560,7 +572,10 @@ sub _do_install {
     
     	# if it exists we need to error
     	unless ( $exists ) {
-    		fail("Package $pkg-$version does not exist.");
+    		return {
+    			"code" => 404,
+    			"response" => "Package $pkg-$version does not exist."
+    		};
     	}
     
     	# ok so we now have it 
@@ -568,7 +583,10 @@ sub _do_install {
     	$file = $DIST->get($project,$pkg,$version);    
     
     	# unpack
-    	$manifest = _unpack_package_tar($file);
+    	my $r  = _unpack_package_tar($file);
+    	
+    	# set it 
+    	$manifest = $r->{manifest};
     
     	# check if the package ist installed
     	my $installed = $PACKAGES->get($p->{pid});
@@ -578,13 +596,19 @@ sub _do_install {
     		
                 # check if the same version is installed
                 if ( $installed->{meta}->{version} eq $manifest->{meta}->{version} && !$options{'same'} ) {
-                    return "$pkg-$installed->{meta}->{version} is already installed";
+                    return {
+                    	"code" => 409,
+                    	"response" => "$pkg-$installed->{meta}->{version} is already installed"
+                    };
                 }
                 
                 # check if the give version is smaller than the 
                 # one installed
                 if ( versioncmp($manifest->{meta}->{version},$installed->{meta}->{version}) == -1 && !$options{'downgrade'} ) {
-                    return "$pkg-$exists is less than the installed version ($installed->{meta}->{version}).\nUse --downgrade to override.";
+                    return {
+                    	"code" => 409,
+                    	"response" => "$pkg-$exists is less than the installed version ($installed->{meta}->{version}).\nUse --downgrade to override."
+                    };
                 }
                 
     		}
@@ -593,7 +617,10 @@ sub _do_install {
 
 	# no manifest
 	if ( $manifest == 0 ) {
-		fail("Manifest is unknow. Try Again.");
+		return {
+			"code" => 500,
+			"response" => "Manifest is unknow. Try Again."
+		};
 	}
 	
 	# lets see if there are any depend
@@ -623,17 +650,26 @@ sub _do_install {
 			
 				# is there a min and max
 				if ( $ver != 0 && $ver != $i->{meta}->{version} ) {
-					fail("Installed version of $i->{meta}->{name} ($i->{meta}->{version}) does not meet $manifest->{meta}->{name} version requirement ($min)");
+					return {
+						"code" => 409,
+						"response" => "Installed version of $i->{meta}->{name} ($i->{meta}->{version}) does not meet $manifest->{meta}->{name} version requirement ($min)"
+					};
 				}			
 			
 				# is there a min and max
 				if ( $min != 0 && versioncmp($i->{meta}->{version},$min) == -1 ) {
-					fail("Installed version of $i->{meta}->{name} ($i->{meta}->{version}) does not meet $manifest->{meta}->{name} minimun requirement ($min)");
+					return {
+						"code" => 409,
+						"response" => "Installed version of $i->{meta}->{name} ($i->{meta}->{version}) does not meet $manifest->{meta}->{name} minimun requirement ($min)"
+					};
 				}
 
 				# is there a min and max
 				if ( $max != 0 && versioncmp($max,$i->{meta}->{version}) == -1 ) {
-					fail("Installed version of $i->{meta}->{name} ($i->{meta}->{version}) does not meet $manifest->{meta}->{name} maximum requirement ($max)");
+					return {
+						"code" => 409,
+						"response" => "Installed version of $i->{meta}->{name} ($i->{meta}->{version}) does not meet $manifest->{meta}->{name} maximum requirement ($max)"
+					};
 				}				
 				
 			}
@@ -660,8 +696,11 @@ sub _do_install {
 			# install
 			foreach my $p ( @install ) {
 				
+				# return
+				my $r = _do_install($p);
+				
 				# try to install
-				msg(_do_install($p));
+				msg($r->{response});
 			
 			}
 			
@@ -731,7 +770,10 @@ sub _do_install {
 		
 		}
 		else {
-			return "The Passphrase you tried for '".$manifest->{meta}->{name}."' was incorrect. Try again!";
+			return {
+				"code" => 403,
+				"response" => "The Passphrase you tried for '".$manifest->{meta}->{name}."' was incorrect. Try again!"
+			};
 		}
 	
 	}
@@ -817,7 +859,10 @@ sub _do_install {
 	_exec_commands($manifest,'post-install');    
 
 	# tell them what up
-	return "Package $manifest->{meta}->{name} installed!";
+	return {
+		"code" => 200,
+		"response" => "Package $manifest->{meta}->{name} installed!"
+	};
 	
 }
 
@@ -879,7 +924,13 @@ sub create {
 	
 	# do create
 	foreach my $f (@file) {
-		msg(&_do_create($f));
+		
+		# response
+		my $r = _do_create($f);
+		
+		# msg 
+		msg( $r->{response} );
+		
 	}
 	
 }
@@ -959,6 +1010,8 @@ sub _do_create {
 	
 		# figure if version is a file we have to look in
 		if ( $version =~ /file\:/ ) {
+		
+			$vff = $version;
 			
 			# remove the file
 			$version =~ s/file\://;
@@ -972,7 +1025,6 @@ sub _do_create {
 			# set hte verison
 			$version = $Meta->{version} = $1;	
 			
-						
 		}
 	
 	   # is project defined in meta
@@ -1012,74 +1064,6 @@ sub _do_create {
         $branch = "qa";
         
     }
-
-	# unless config tells us no dist we want
-	# to make sure this version doesn't already 
-	# exist
-	if ( $dist == 1 ) {
-		if ( $DIST->check($project,$pkg,$version) ) {
-		
-			# see if they're using a file:
-			if ( $vff ) {
-				
-				# ask them if they want to add to the file
-				my $r = ask("Version $version already exists for $pkg. Would you like to up the version and add a comment? [y]");
-				
-				# if we get y
-				if ( lc(substr($r,0,1)) eq "y" || $r eq "" ) {
-					
-					# one more
-					my $iv = incr_version($version);
-					
-					# ask for the new version
-					my $v = ask(" New version Number [".$iv."]:");
-					
-						# no number
-						if ( $v eq "" ) {
-							$v = $iv;
-						}
-					
-					# comment
-					my $c = ask(" Add Comments [y]:");
-	
-						if ( lc(substr($r,0,1)) eq "y" || $r eq ""  ) {
-							
-							# tmp file
-							my $t = $CONFIG->get('tmpf') . "/" . rand_str(10);
-							
-							# launch
-							system("vi $t");
-							
-							# get it 
-							$c = file_get($t);
-							
-							# remove
-							`rm $t`;
-							
-						}
-	
-					# open the file
-					my $f = file_get($vff);
-					
-					# append our new stuff
-					my $nf = "Version $v\n$c\n\n".$f;
-					
-					# save it 
-					file_put($vff,$nf);
-				
-					# done
-					# set the new version number
-					$version = $Meta->{version} = $v;
-				
-				}
-				
-			}
-			else {		
-				fail("Package '$pkg' version '$version' already exists");
-			}
-			
-		}
-	}
 	
 	# pass
 	my $passphrase = 0;
@@ -1411,6 +1395,7 @@ sub _do_create {
 			'host' => $ENV{'HOSTNAME'},
 			'pwd' => $ENV{'PWD'}			
 		},
+		'ov' => $vff,
 		'files' => \@nicelist
 	};
 	
@@ -1425,7 +1410,6 @@ sub _do_create {
 	
 	# package
 	my $package = "$tdir/$pkg-$version.tar.gz";
-
 	
 	# dist
 	if ( $type eq 'release' && $dist == 1 ) {
@@ -1441,16 +1425,22 @@ sub _do_create {
         
         # no r
         if ( $r != 1 ) {
-        	fail("Could not upload package to Dist.\n Error: ".$DIST->error());
+        	return {
+        		"code" => 500,
+        		"response" => "Could not upload package to Dist.\n Error: ".$DIST->error()
+        	};
         }	
 	
 		# we want to do dist
 	#	_do_dist($package);
 	
 	}
+	else {
 	
-    # or move the file back to the pwd 
-	`sudo mv $package $pwd`;
+	    # or move the file back to the pwd 
+		`sudo mv $package $pwd`;
+		
+	}
 
 	# remove our tmp dir
 	`sudo rm -r $tdir`;
@@ -1460,9 +1450,6 @@ sub _do_create {
 
     # install
     if ( $install ) {
-    
-        # msg
-        msg("Package Created: $name");
      
         # run install
         return _do_install($name.".tar.gz");
@@ -1471,7 +1458,11 @@ sub _do_create {
     else {
    
     	# done
-    	return "Package Created: $name";
+    	return {
+    		"code" => 200,
+    		"name" => $name,
+    		"response" => "Package Created: $name"
+    	};
     	
     }
 
@@ -1806,157 +1797,6 @@ sub rm {
 
 
 ###############################################################
-### @brief comand line idst
-###############################################################
-sub dist {
-
-    # no packages?
-    if ( $#cmds == -1 ) {
-        fail("You must provide at lease one package to dist.");
-    }
-	
-	# where are we now
-	my $pwd = getcwd();    	
-	
-	# package files
-	if ($#cmds != -1) {
-		push(@file,$cmds[0]);
-	}
-	else {
-	
-		# open the directory and see if there's a pkg file	
-		opendir(my $dh, $pwd);
-		my @files = grep { $_ =~ /\.tar\.gz/ } readdir($dh);
-		closedir $dh;
-		
-		# if yes set as file
-		if ( $#files != -1 ) {
-			@file = @files;
-		}
-
-	}
-	
-	# still no file 
-	if ( $#file == -1 ) {
-		
-		my $r = ask("Would you like to recursivly dist all package files in this directory. [n]");
-		
-		# ask if they want to build the directory
-		if ( lc(substr($r,0,1)) eq "y" ) {
-			
-			# search the directory
-			foreach my $f ( @{search_dir($pwd,"*.tar.tz")} ) {
-				my @n = split(/\//,$f);
-			
-				if ( lc(substr(ask(" Build $n[$#n] [y]:"),0,1)) ne 'n' ) {
-					push(@file,$f);
-				}
-			}
-			
-		}
-		
-	}
-		
-	# make sure we have a file
-	if ( $#file == -1 ) {
-		fail("No Build Manifest given");
-	}
-	
-	# do create
-	foreach my $f (@file) {
-		msg(&_do_dist($f));
-	}
-	
-
-}
-
-###############################################################
-### @brief command line remove a package(s)
-###############################################################
-sub _do_dist {
-
-	# package file to send to dist
-	my $pkg = @_;
-	
-	$r = $DIST->upload({
-	   'project' => $project,
-	   'username' => $CONFIG->get('username'),
-	   'name' => $pkg,
-	   'version' => $version,
-	   'branch' => $branch,
-	   'tar' => file_get($pkg)
-    });	
-
-}
-
-
-###############################################################
-### @brief build a package
-###############################################################
-sub build {
-
-	# open the build file
-    if ( $#cmds == -1 ) {
-        fail("You must provide a build file");
-    }
-    
-	# where are we now
-	my $pwd = getcwd();    		
-
-	# open the manifest
-	my $man = file_get($cmds[0]);
-
-	# save the man as a tmp file
-	my $tmp = $CONFIG->get('tmpf') . "/" . rand_str(5);	
-	
-	# put the man
-	file_put($tmp,$man);
-		
-	# what we need
-	our $name = 0;
-	our $branch = 'current';
-	our $packages = 0;
-	
-	# try to include the file
-	eval {
-		do "$tmp";
-	};
-	
-	# need at least packages
-	if ( $packages == 0 ) {
-		fail("Need to provide a list of packages to build");
-	}
-	
-	# username
-	my $u = $ENV{'SUDO_USER'};		
-	my $p = ask("SVN Password:",1);
-	
-	# try to open the build file
-	my $builds = file_get(".$name") || {};
-	
-	# lets look at each package
-	# and check the svn status to
-	# see if anything has changed since we last build 
-	foreach my $pkg ( @{$packages} ) {
-		
-		# path
-		my $path = trim($pkg->{root}) . "/" . trim($pkg->{src});
-		
-		# move into path
-		chdir($path);
-		
-		# get the status of src
-		my $stat = `svn --username='$u' --password='$p' status -u .`;
-		
-		print $stat; die;
-		
-	}
-
-}
-
-
-
-###############################################################
 ### @brief internal remove function
 ###
 ### @param $packages hash of packages to remove
@@ -2028,6 +1868,297 @@ sub _remove {
 
 	# rebuild crons
 	_rebuild_crons();
+
+}
+
+
+###############################################################
+### @brief comand line idst
+###############################################################
+sub dist {
+
+    # no packages?
+    if ( $#cmds == -1 ) {
+        fail("You must provide at lease one package to dist.");
+    }
+	
+	# where are we now
+	my $pwd = getcwd();    	
+	
+	# package files
+	if ($#cmds != -1) {
+		push(@file,$cmds[0]);
+	}
+	else {
+	
+		# open the directory and see if there's a pkg file	
+		opendir(my $dh, $pwd);
+		my @files = grep { $_ =~ /\.tar\.gz/ } readdir($dh);
+		closedir $dh;
+		
+		# if yes set as file
+		if ( $#files != -1 ) {
+			@file = @files;
+		}
+
+	}
+	
+	# still no file 
+	if ( $#file == -1 ) {
+		
+		my $r = ask("Would you like to recursivly dist all package files in this directory. [n]");
+		
+		# ask if they want to build the directory
+		if ( lc(substr($r,0,1)) eq "y" ) {
+			
+			# search the directory
+			foreach my $f ( @{search_dir($pwd,"*.tar.tz")} ) {
+				my @n = split(/\//,$f);
+			
+				if ( lc(substr(ask(" Build $n[$#n] [y]:"),0,1)) ne 'n' ) {
+					push(@file,$f);
+				}
+			}
+			
+		}
+		
+	}
+		
+	# make sure we have a file
+	if ( $#file == -1 ) {
+		fail("No Build Manifest given");
+	}
+	
+	# do create
+	foreach my $f (@file) {
+		msg(&_do_dist($f));
+	}
+	
+
+}
+
+###############################################################
+### @brief command line remove a package(s)
+###############################################################
+sub _do_dist {
+
+	# package file to send to dist
+	my ($pkg,$branch) = @_;
+	
+	# no branch
+	unless ( $branch ) {
+		$branch = 'current';
+	}
+	
+	# need package
+	unless ( -e $pkg ) {
+		return {
+			"code" => 404,
+			"response" => "Could not find package $pkg to dist"	
+		};
+	}
+	
+	# file
+	my $file = file_get($pkg);
+	
+	# unpack the package file
+	my $r = _unpack_package_tar( $pkg );
+	
+	# manifest
+	my $man = $r->{manifest};
+	my $tmp = $r->{tmp};
+	
+		# could not tar
+		unless ( $man ) {
+			return {
+				"code" => 400,
+				"response" => "Could not untar package file"	
+			};			
+		}
+		
+	my $project = $man->{project};
+	my $name = $man->{meta}->{name};
+	my $version = $man->{meta}->{version};
+
+
+	if ( $DIST->check($project,$name,$version) ) {
+	
+		# see if they're using a file:
+		if ( $man->{ov} =~ /file\:/i ) {
+			
+			# ask them if they want to add to the file
+			my $r = ask("Version $version already exists for $pkg. Would you like to up the version and add a comment? [y]");
+			
+			# if we get y
+			if ( lc(substr($r,0,1)) eq "y" || $r eq "" ) {
+				
+				# one more
+				my $iv = incr_version($version);
+				
+				# ask for the new version
+				my $v = ask(" New version Number [".$iv."]:");
+				
+					# no number
+					if ( $v eq "" ) {
+						$v = $iv;
+					}
+				
+				# comment
+				my $c = ask(" Add Comments [n]:");
+
+					if ( lc(substr($r,0,1)) eq "y" ) {
+						
+						# tmp file
+						my $t = $CONFIG->get('tmpf') . "/" . rand_str(10);
+						
+						# launch
+						system("vi $t");
+						
+						# get it 
+						$c = file_get($t);
+						
+						# remove
+						`rm $t`;
+						
+					}
+
+				# open the file
+				my $f = file_get("$tmp/changelog");
+				
+				# append our new stuff
+				my $nf = "Version $v\n$c\n\n".$f;
+				
+				# save it 
+				file_put("$tmp/changelog",$nf);
+			
+				# done
+				# set the new version number
+				$version = $man->{meta}->{version} = $v;
+
+				# resave the manifest	
+				file_put($tmp."/.manifest", to_json($manifest) );				
+			
+				# pwd
+				my $pwd = getcwd();
+				
+				# move into tmp
+				chdir($tmp);
+				
+				# repackage the tmp dir 			
+				`sudo tar -czf $name.tar.gz .`;
+				
+				# package
+				$file = file_get($tmp);
+				
+				# move back
+				chdir($pwd);
+				
+			}
+			else {			
+				return {
+					"code" => 403,
+					"response" => "Package '$pkg' version '$version' already exists"
+				};
+			}				
+			
+		}
+		else {			
+			return {
+				"code" => 403,
+				"response" => "Package '$pkg' version '$version' already exists"
+			};
+		}		
+		
+	}	
+	
+	# upload
+	$r = $DIST->upload({
+	   'project'	=> $project,
+	   'username'	=> $CONFIG->get('username'),
+	   'name'		=> $name,
+	   'version'	=> $version,
+	   'branch'		=> $branch,
+	   'tar' 		=> $file
+    });	
+
+}
+
+
+###############################################################
+### @brief build a package
+###############################################################
+sub build {
+
+	# open the build file
+    if ( $#cmds == -1 ) {
+        fail("You must provide a build file");
+    }
+    
+	# where are we now
+	my $pwd = getcwd();    		
+
+	# open the manifest
+	my $man = file_get($cmds[0]);
+
+	# save the man as a tmp file
+	my $tmp = $CONFIG->get('tmpf') . "/" . rand_str(5);	
+	
+	# put the man
+	file_put($tmp,$man);
+		
+	# what we need
+	our $name = 0;
+	our $branch = 'current';
+	our $packages = 0;
+	our $install = 0;
+	
+	# try to include the file
+	eval {
+		do "$tmp";
+	};
+	
+	# need at least packages
+	if ( $packages == 0 ) {
+		fail("Need to provide a list of packages to build");
+	}
+	
+	# try to open the build file
+	my $builds = file_get(".$name") || {};
+	
+	# what was built 
+	my @built = ();
+	
+	# lets look at each package
+	# and check the svn status to
+	# see if anything has changed since we last build 
+	foreach my $pkg ( @{$packages} ) {
+		
+		# file
+		my $f = $pkg->{pkg};
+		
+		# create the package
+		my $r = _do_create($f);
+		
+		# if good 
+		if ( $r->{code} == 200 ) {
+			
+			# tell them
+			msg($r->{response});
+			
+			# built
+			push(@built,$r->{name});
+				
+			# dist
+			unless ( $pkg->{"no-dist"} ) {
+				
+				# dist
+				_do_dist( $pkg->{name} );
+				
+			}		
+			
+		}	
+		
+	}
 
 }
 
@@ -2225,8 +2356,14 @@ sub _unpack_package_tar {
 	# untar the file
 	`sudo tar -xzf pkg`;
 	
+	# remove pkg
+	`rm pkg`;
+	
 	# open our manifest
-	return from_json( file_get($tdir.'/.manifest') );
+	return {
+		'tmp' => "$tdir",
+		'manifest' => from_json( file_get($tdir.'/.manifest') )
+	};
 
 }
 

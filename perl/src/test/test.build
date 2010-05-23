@@ -1,8 +1,6 @@
-$platform = "platform/branches/groundwork";
-$bolt = "platform/branches/groundwork";
 
 # build name
-$name = "dashboard_qa";
+$name = "test_qa";
 
 # branch
 $branch = "qa";
@@ -10,28 +8,17 @@ $branch = "qa";
 # packages
 $packages = [
 	{ 
-		"root" => "$platform/dashboard", 
-		"src" => "src/",
-		"pkg" => "pkg/dashboard.pkg" 
-	},
-	{ 
-		"root" => "$platform/dao", 
-		"src" => "src/",	
-		'pkg' => "pkg/dao.pkg" 
-	},
-	{ 
-		"root" => "$bolt/dao", 
-		"src" => "src/",
-		'pkg' => "pkg/dao.pkg" 
-	},
-	{ 
-		"root" => "$bolt/framework", 
-		"src" => "src/",	
-		'pkg' => "pkg/framework.pkg" 
-	},
-	{ 
-		"root" => "$bolt/modules", 
-		"src" => "src/",
-		'pkg' => "pkg/modules.pkg" 
+		"pkg" => "./test.pkg",
+		'set' => {
+		
+		}
+	}
+];
+
+# install
+$install = [
+	{
+		"host" => "qa1.corp.dailyd.com:929",
+		"packages" => "all"
 	}
 ];
