@@ -5,8 +5,9 @@ dest = /home/bolt/share/htdocs/test
 
 
 # meta data
+meta PROJECT = drib
 meta NAME = test
-meta VERSION = 1.0
+meta VERSION = file:changelog
 meta SUMMARY = This is my summary
 meta DESCRIPTION = This is my long description
 meta CHANGELOG = changelog

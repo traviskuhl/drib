@@ -1010,17 +1010,15 @@ sub _do_create {
 	
 		# figure if version is a file we have to look in
 		if ( $version =~ /file\:/ ) {
-		
-			$vff = $version;
 			
 			# remove the file
-			$version =~ s/file\://;
-			
-			# version from file
-			$vff = $version;			
+			$version =~ s/file\://;				
 			
 			# open the file 
 			my $f = file_get($version) =~ /Version ([0-9\.]+)/i;
+
+			# get the version file
+			$vff = $pwd .'/'. $version;			
 			
 			# set hte verison
 			$version = $Meta->{version} = $1;	
@@ -1412,27 +1410,10 @@ sub _do_create {
 	my $package = "$tdir/$pkg-$version.tar.gz";
 	
 	# dist
-	if ( $type eq 'release' && $dist == 1 ) {
-	
-    	$r = $DIST->upload({
-    	   'project' => $project,
-    	   'username' => $CONFIG->get('username'),
-    	   'name' => $pkg,
-    	   'version' => $version,
-    	   'branch' => $branch,
-    	   'tar' => file_get($package)
-        });
-        
-        # no r
-        if ( $r != 1 ) {
-        	return {
-        		"code" => 500,
-        		"response" => "Could not upload package to Dist.\n Error: ".$DIST->error()
-        	};
-        }	
+	if ( $type eq 'release' && $options{'dist'} == 1 ) {
 	
 		# we want to do dist
-	#	_do_dist($package);
+		return _do_dist("$name.tar.gz");
 	
 	}
 	else {
@@ -1931,7 +1912,13 @@ sub dist {
 	
 	# do create
 	foreach my $f (@file) {
-		msg(&_do_dist($f));
+	
+		# response
+		$r = &_do_dist($f);
+		
+		# good
+		msg($r->{response});
+		
 	}
 	
 
@@ -1962,7 +1949,7 @@ sub _do_dist {
 	my $file = file_get($pkg);
 	
 	# unpack the package file
-	my $r = _unpack_package_tar( $pkg );
+	my $r = _unpack_package_tar( $file );
 	
 	# manifest
 	my $man = $r->{manifest};
@@ -1980,11 +1967,10 @@ sub _do_dist {
 	my $name = $man->{meta}->{name};
 	my $version = $man->{meta}->{version};
 
-
 	if ( $DIST->check($project,$name,$version) ) {
 	
 		# see if they're using a file:
-		if ( $man->{ov} =~ /file\:/i ) {
+		if ( $man->{ov} && -e $man->{ov} ) {
 			
 			# ask them if they want to add to the file
 			my $r = ask("Version $version already exists for $pkg. Would you like to up the version and add a comment? [y]");
@@ -2021,7 +2007,7 @@ sub _do_dist {
 						`rm $t`;
 						
 					}
-
+			
 				# open the file
 				my $f = file_get("$tmp/changelog");
 				
@@ -2029,14 +2015,15 @@ sub _do_dist {
 				my $nf = "Version $v\n$c\n\n".$f;
 				
 				# save it 
-				file_put("$tmp/changelog",$nf);
+				file_put("$tmp/changelog",$nf);	# to package
+				file_put($man->{ov},$nf); # to vhangelog file
 			
 				# done
 				# set the new version number
 				$version = $man->{meta}->{version} = $v;
 
 				# resave the manifest	
-				file_put($tmp."/.manifest", to_json($manifest) );				
+				file_put($tmp."/.manifest", to_json($man) );
 			
 				# pwd
 				my $pwd = getcwd();
@@ -2044,11 +2031,14 @@ sub _do_dist {
 				# move into tmp
 				chdir($tmp);
 				
+				# remove the tar
+				`rm $pkg`;
+				
 				# repackage the tmp dir 			
 				`sudo tar -czf $name.tar.gz .`;
 				
 				# package
-				$file = file_get($tmp);
+				$file = file_get($tmp."/$name.tar.gz");
 				
 				# move back
 				chdir($pwd);
@@ -2073,13 +2063,30 @@ sub _do_dist {
 	
 	# upload
 	$r = $DIST->upload({
-	   'project'	=> $project,
+	   'project'	=> $man->{project},
 	   'username'	=> $CONFIG->get('username'),
-	   'name'		=> $name,
-	   'version'	=> $version,
+	   'name'		=> $man->{meta}->{name},
+	   'version'	=> $man->{meta}->{version},
 	   'branch'		=> $branch,
 	   'tar' 		=> $file
     });	
+    
+    # name
+    my $n = $man->{project}."/".$man->{meta}->{name}."-".$man->{meta}->{version};
+    
+    # what happened
+    if ( $r ) {
+    	return {
+    		'code' => 200,
+    		'response' => "Package $n pushed to dist"
+    	};
+    }
+    else {
+    	return {
+    		'code' => 500,
+    		'response' => "Unknown error prevent dist"
+    	};    
+    }
 
 }
 
