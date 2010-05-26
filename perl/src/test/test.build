@@ -4,10 +4,11 @@ $name = "test_qa";
 
 # branch
 $branch = "qa";
+$type = "qa";
 
 # packages
 $packages = [
-	{ 
+	{ 	
 		"pkg" => "./test.pkg",
 		'set' => {
 		

@@ -1063,6 +1063,9 @@ sub _do_create {
         
     }
 	
+	# set version
+	$Meta->{version} = $version;
+	
 	# pass
 	my $passphrase = 0;
 
@@ -1408,7 +1411,7 @@ sub _do_create {
 	
 	# package
 	my $package = "$tdir/$pkg-$version.tar.gz";
-	
+			
 	# dist
 	if ( $type eq 'release' && $options{'dist'} == 1 ) {
 	
@@ -1425,9 +1428,9 @@ sub _do_create {
 
 	# remove our tmp dir
 	`sudo rm -r $tdir`;
-		
+
     # move back to current
-    chdir $pwd;    	
+    chdir $pwd;
 
     # install
     if ( $install ) {
@@ -1442,6 +1445,7 @@ sub _do_create {
     	return {
     		"code" => 200,
     		"name" => $name,
+    		"project" => $project,
     		"response" => "Package Created: $name"
     	};
     	
@@ -1937,6 +1941,14 @@ sub _do_dist {
 		$branch = 'current';
 	}
 	
+	# no tar.gz on package name
+	unless ( $pkg =~ /\.tar\.gz/ ) {
+		$pkg .= ".tar.gz";
+	}
+	
+	# pwd
+	my $pwd = getcwd();
+	
 	# need package
 	unless ( -e $pkg ) {
 		return {
@@ -1970,7 +1982,7 @@ sub _do_dist {
 	if ( $DIST->check($project,$name,$version) ) {
 	
 		# see if they're using a file:
-		if ( $man->{ov} && -e $man->{ov} ) {
+		if ( $man->{ov} && -e $man->{ov} && $man->{type} eq 'release' ) {
 			
 			# ask them if they want to add to the file
 			my $r = ask("Version $version already exists for $pkg. Would you like to up the version and add a comment? [y]");
@@ -2116,6 +2128,7 @@ sub build {
 	# what we need
 	our $name = 0;
 	our $branch = 'current';
+	our $type = "release";
 	our $packages = 0;
 	our $install = 0;
 	
@@ -2129,11 +2142,19 @@ sub build {
 		fail("Need to provide a list of packages to build");
 	}
 	
+	# lets get their password
+	my $pword = ask("Password:",1);		
+	
+		# set it 
+		$DIST->setPassword($pword);
+	
 	# try to open the build file
 	my $builds = file_get(".$name") || {};
 	
 	# what was built 
-	my @built = ();
+	my @built = ();	
+	
+	msg("Starting build...");
 	
 	# lets look at each package
 	# and check the svn status to
@@ -2143,27 +2164,118 @@ sub build {
 		# file
 		my $f = $pkg->{pkg};
 		
+		# set branch option
+		$options{'type'} = $type;
+		
 		# create the package
 		my $r = _do_create($f);
 		
 		# if good 
 		if ( $r->{code} == 200 ) {
 			
-			# tell them
-			msg($r->{response});
+			# add 
+			push(@built,$r->{project}."/".$r->{name});
 			
-			# built
-			push(@built,$r->{name});
-				
+			# message
+			msg(" Built $r->{name}");
+			
+		}
+		else {
+			fail("Could not build $pkg");
+		}
+		
+	}
+	
+	# dist
+	my @dist = ();
+
+	# now dist all of our packages
+	foreach my $name ( @built ) {
+		
+		# make sure this package doesn't exists on dist
+		my $p = _parse_pkg_name($name);
+		
+		# check it 
+		if ( $DIST->check($p->{project},$p->{name},$p->{version}) ) {
+			fail("Package $p->{full} already exists on dist ");
+		}
+		
+		# dist me
+		push(@dist,$p);
+	
+	}
+	
+	# install
+	my %pkgs = ();
+	
+	# now we can dist
+	foreach my $d ( @dist ) {
+		
+		# do it up
+		my $r = _do_dist( $d->{name}.'-'.$d->{version} );
+	
+		# what happened
+		if ( $r->{code} == 200 ) {
+			
+			# name
+			$n = $d->{project}."/".$d->{name};
+			
+			# install
+			$pkgs{$n} = $d;
+		
 			# dist
-			unless ( $pkg->{"no-dist"} ) {
-				
-				# dist
-				_do_dist( $pkg->{name} );
-				
-			}		
+			msg(" Pushed $d->{full} to dist");
 			
+		}
+		else {
+			fail(" Could not push a package to dist");
+		}
+	
+	}
+
+	# all packages
+	msg(" All packages on dist. Starting install...");
+
+	# do it 
+	foreach my $i (@{$install}) {
+		
+		# list
+		my @lst = ();
+
+		# host
+		my $h = new drib::host($i->{host},$pword);
+		
+		# figure out waht they 
+		if ( ref $i->{packages} eq "ARRAY" ) {
+			@list = @{$i->{packages}};		
+		}
+		else {
+			foreach my $p (keys %pkgs) {
+				push(@lst,$p);
+			}
 		}	
+		
+		# loop
+		foreach my $n ( @lst ) {
+		
+			# packages
+			my $p = $pkgs{$n};
+			
+			# cmd
+			$cmd = "sudo drib install ".$p->{full};
+		
+			# run the command
+			my ($r,$msg) = $h->cmd($cmd);		
+			
+			# what up
+			if ( $r ) {
+				msg(" Package $p->{full} installed!");				
+			}
+			else {
+				msg(" Install of $p->{full} failed");
+			}
+			
+		}		
 		
 	}
 
@@ -2222,7 +2334,7 @@ sub _parse_pkg_name {
     }
 
     # give back an object
-    return { 'name' => $pkg, 'project' => $project, 'version' => $version, 'pid' => _get_pid($project,$pkg) };
+    return { 'full' => "$project/$pkg-$version", 'name' => $pkg, 'project' => $project, 'version' => $version, 'pid' => _get_pid($project,$pkg) };
 
 }
 

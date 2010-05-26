@@ -29,7 +29,7 @@ use drib::utils;
 sub new {
 
 	# get some
-	my ($ref,$host) = @_;
+	my ($ref,$host,$pass) = @_;
 
 	# get myself
 	my $self = {};
@@ -39,6 +39,7 @@ sub new {
 
 	$self->{host} = $host;
 	$self->{port} = $port || 22;
+	$self->{pass} = $pass;
 	
 	# bless and return me
 	bless($self); 
@@ -59,15 +60,20 @@ sub connect {
 	
 	# username
 	my $user = $ENV{'SUDO_USER'};	
-	
-	# tries
-	$self->{pass} = 0;
 
 	# ssh 
 	$self->{ssh} = Net::SSH::Perl->new($self->{host}, port => $self->{port}, protocol => 2, debug => 0, interactive => 0 );
 
+	# pword
+	my $pword;
+
 	# password
-	my $pword = ask("Password:",1);				
+	if ( $self->{pass} ) {
+		$pword = $self->{pass};
+	}
+	else {
+		$pword = ask("Password:",1);				
+	}
 	
 	# lojgn
 	$self->{ssh}->login($user,$pword);

@@ -45,6 +45,12 @@ sub new {
 
 }
 
+sub setPassword {
+	my $self = shift;
+	my $pw = shift;
+	$self->{pass} = $pw;
+}
+
 # connect to dist
 sub connect {
 
@@ -63,6 +69,26 @@ sub connect {
 		# done
 		return;
 
+	}
+	
+	# already have a password
+	if ( $self->{pass} ) {
+		
+		# try
+		$self->{ssh} = new Net::SFTP::Foreign($self->{server}, user=>$user, password=>$self->{pass}, port=>$self->{port}, autodisconnect=>0, timeout=>5);	
+	
+		# no error
+		unless ( $self->{ssh}->error ) {
+			
+			# set it 
+			$self->{isConnected} = 1;
+			$self->{pass} = $self->{pass};
+			
+			#done
+			return;
+			
+		}	
+	
 	}
 	
 	# connect
