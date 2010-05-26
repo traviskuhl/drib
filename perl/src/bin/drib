@@ -186,6 +186,7 @@ my $DIST = 0;
 my $PACKAGES = 0;
 my $SETTINGS = 0;
 my $CRONS = 0;
+my $TMP = "/tmp";
 
 # if we self-install, we don't need
 # dist or config, mostly because it doesn't 
@@ -211,12 +212,24 @@ unless ( $act eq 'setup' || $act eq 'config' ) {
     # create a dist object
     $DIST = new $mod($CONFIG);  
 
+	# tmp directory
+	$TMP = $CONFIG->get('tmpf') . "/" . rand_str(5);
+	
+	# make our tmp
+	`mkdir $TMP`;
+
     # define what happens when we end
     END {
+    
+    	# save
         $CONFIG->save() if $CONFIG;
         $PACKAGES->save() if $PACKAGES;
         $SETTINGS->save() if $SETTINGS;
         $CRONS->save() if $CRONS;
+        
+        # remove tmp directory
+        `rm -rf $TMP`;
+        
     }
 	
 }
@@ -977,7 +990,7 @@ sub _do_create {
 	}
 
 	# save the man as a tmp file
-	my $tmp = $CONFIG->get('tmpf') . "/" . rand_str(5);
+	my $tmp = $TMP . "/" . rand_str(5);
 
 	# put the man
 	file_put($tmp,$man);
@@ -1079,7 +1092,7 @@ sub _do_create {
 
 	# now we need to create a tmp director
 	my $tdir_name = rand_str(10);
-	my $tdir = $CONFIG->get('tmpf') . "/" . $tdir_name;
+	my $tdir = $TMP . "/" . $tdir_name;
 
 	# create the dir
 	`sudo mkdir $tdir`;
@@ -2007,7 +2020,7 @@ sub _do_dist {
 					if ( lc(substr($r,0,1)) eq "y" ) {
 						
 						# tmp file
-						my $t = $CONFIG->get('tmpf') . "/" . rand_str(10);
+						my $t = $TMP . "/" . rand_str(10);
 						
 						# launch
 						system("vi $t");
@@ -2120,7 +2133,7 @@ sub build {
 	my $man = file_get($cmds[0]);
 
 	# save the man as a tmp file
-	my $tmp = $CONFIG->get('tmpf') . "/" . rand_str(5);	
+	my $tmp = $TMP . "/" . rand_str(5);	
 	
 	# put the man
 	file_put($tmp,$man);
@@ -2461,7 +2474,7 @@ sub _unpack_package_tar {
 	my ($file) = @_;
 
 	# make a tmp dir
-	my $tdir = $CONFIG->get('tmpf') . "/" . rand_str(10);
+	my $tdir = $TMP . "/" . rand_str(10);
 	
 	# make it 
 	`sudo mkdir $tdir`;
@@ -2505,7 +2518,7 @@ sub _rebuild_crons {
 	}
 
 	# save as tmp
-	my $tmp = $CONFIG->get('tmpf') . "/" . rand_str(10);
+	my $tmp = $TMP . "/" . rand_str(10);
 
 	# put into tmp
 	file_put($tmp,$file);

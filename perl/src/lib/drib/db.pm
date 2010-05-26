@@ -149,11 +149,27 @@ sub load {
 	my $self = shift;
 	
 	# open the file
-	$file = trim($self->{var}).'/'.trim($self->{db}).'.json';
+	$d = trim($self->{var}).'/';
+	$f = trim($self->{db}).'.json';
+	$file = $d.$f;
+	
+	# backups 
+	my $bk = trim($self->{var}).'/backups/';
+	
+		# check for backup folder
+		unless ( -e $bk ) {
+			`mkdir $bk`;
+		}	
 	
 	# doesn't exist
 	if ( -e $file ) {
+			
+		# make a backup copy
+		`cp $file $bk$f`;
+	
+		# set 
 		$self->{content} = from_json(file_get( $file ));
+				
 	}
 	else {
 		$self->{content} = {};
