@@ -18,6 +18,7 @@ use base qw(Exporter);
 
 
 our @EXPORT = qw(
+	prefix_output
 	search_dir
 	trim
 	ws_trim
@@ -34,6 +35,24 @@ our @EXPORT = qw(
 	incr_version
 	versioncmp	
 );
+
+sub prefix_output {
+	
+	my $cmd = shift;
+	my $prefix = shift;
+	
+	# run ut 
+	open(RUN, "$cmd |");
+	
+		# print 
+		while ( <RUN> ) {
+			chomp;
+			msg("[$prefix] $_");
+		}
+		
+	close(RUN);	
+
+}
 
 sub search_dir {
 
@@ -132,7 +151,8 @@ sub force_root {
 }
 
 sub in_array {
-    my ($arr,$search_for) = @_;
+    my ($arr,$search_for) = @_;   
+    
     foreach my $value (@$arr) {
         return 1 if $value eq $search_for;
     }

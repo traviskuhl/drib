@@ -106,7 +106,8 @@ my $Commands = {
             'branch'=>'branch=s',
             'same' => 'same|s',
             'downgrade' => 'downgrade',
-            'host' => 'host|h=s'
+            'host' => 'host|h=s',
+            'depend' => 'depend!'
         }
     },
     
@@ -463,9 +464,17 @@ sub install {
 
 	# loop me up
 	foreach my $p ( @cmds ) {
+	
+		# get our options
+		my $opt = {};
+		
+			# make an opt
+			foreach my $k ( keys %options ) {
+				$opt->{$k} = $options{$k};
+			}
 		
 		# try to isntall
-		my $r = _do_install( $p );
+		my $r = _do_install( $p, $opt );
 			
 		# tell them we're done
 		msg($r->{response});		
@@ -484,19 +493,29 @@ sub install {
 sub _do_install {
 	
 	# given a file
-	my ($pkg_file) = @_;
+	my ($pkg_file,$opts) = @_;
 	
 	# get commands
 	my ($pkg,$version,$file,$project);
 	
+	# options
+	my $o_host		= $opts->{host} || 0;								# remote host
+	my $o_depend	= (defined $opts->{depend} ? $opts->{depend} : 1);	# install dependencies
+	my $o_cleanup	= $opts->{cleanup} || 0;							# cleanup after install
+	my $o_project	= $opts->{project} || 0;							# project
+	my $o_branch	= $opts->{branch} || "current";						# branch
+	my $o_version	= $opts->{version} || $o_branch;					# version
+	my $o_same		= $opts->{same} || 0;								# install same pakage
+	my $o_downgrade	= $opts->{downgrade} || 0;							# downgrade from newer package
+	
 	# check for host
-	if ( $options{'host'} ) {
+	if ( $o_host ) {
 		
 		# remove host
 		$ocmd =~ s/-h(ost)?=?.*//gi;
 		
 		# host
-		my $h = new drib::host($options{'host'});
+		my $h = new drib::host($o_host);
 		
 		# cmd
 		$cmd = "sudo drib " . $ocmd;
@@ -508,13 +527,13 @@ sub _do_install {
 		if ( $r ) {
 			return {
 				"code" => 200,
-				"response" => "$pkg_file was installed on $options{'host'}",
+				"response" => "$pkg_file was installed on $o_host",
 			}
 		}
 		else {
 			return {
 				"code" => 400,
-				"response" => "$pkg_file could not be installed on $options{'host'}"
+				"response" => "$pkg_file could not be installed on $o_host"
 			};
 		}
 	
@@ -543,7 +562,7 @@ sub _do_install {
         $file = file_get($pkg_file);	
         
         # if cleanup
-        if ( $options{'cleanup'} ) {
+        if ( $o_cleanup ) {
             `sudo rm $pkg_file`;
         }
         
@@ -572,12 +591,24 @@ sub _do_install {
         $version    = $p->{version} || 'current';
     	
         # check for external projects
-        if ( in_array(\@external::PROJECTS,$project) ) {
+        if ( in_array(\@drib::external::PROJECTS,$project) ) {
         
             # what happeend
-            return &external::_map($project,$pkg,$version);
+            &drib::external::_map($project,$pkg,$version);
+                        
+		    # make a pid
+		    my $pid = _get_pid($project,$pkg);
+		    
+			# add package to our package db
+			$PACKAGES->set($pid, { 'project' => $project, 'meta' => { 'name' => $pkg, 'version' => 0 }} );
+		    
+		    # set it 
+		    $PACKAGES->add($pkg,$pid,'map');
             
-        }    
+            # all done
+            return;
+            
+        }   
     
     	# now we need to check with dist 
     	# to see if this package exists 
@@ -637,7 +668,7 @@ sub _do_install {
 	}
 	
 	# lets see if there are any depend
-	if ( $manifest->{depend} ) {
+	if ( $manifest->{depend} && $o_depend ) {
 		
 		# install
 		my @install = ();
@@ -690,7 +721,7 @@ sub _do_install {
 				
 				# is there a version
 				if ( $ver == 0 ) {
-					$ver = $options{'branch'} || 'current';
+					$ver = $opts->{'branch'} || 'current';
 				}
 				
 				# package name
@@ -721,7 +752,7 @@ sub _do_install {
 			chdir $start_pwd;			
 			
 			# now try reinstalling the package file
-			return _do_install($pkg_file);		
+			return _do_install($pkg_file,{'depend' => 0});		
 			
 		}
 	
@@ -1449,7 +1480,9 @@ sub _do_create {
     if ( $install ) {
      
         # run install
-        return _do_install($name.".tar.gz");
+        return _do_install($name.".tar.gz",{
+        	'cleanup' => $options{'cleanup'}
+        });
         
     }
     else {
@@ -1712,6 +1745,11 @@ sub list {
 	    }
     
     }
+    
+    # print it 
+    msg("-"x40);      
+    msg("Total of $total Packages installed.");       
+    msg("-"x40);      
             
     # print them
     foreach my $pr ( keys %projects ) {
@@ -1729,19 +1767,18 @@ sub list {
 				if ( defined $packages->{$pid}->{meta}->{local} ) {
 					$local = " (Build: ".$packages->{$pid}->{meta}->{local}.")";
 				}
-	
-		
-			msg(" ".$packages->{$pid}->{meta}->{name}."-".$packages->{$pid}->{meta}->{version}.$local);
+				
+			if ( $packages->{$pid}->{meta}->{version} != 0 ) {
+				msg(" ".$packages->{$pid}->{meta}->{name}."-".$packages->{$pid}->{meta}->{version}.$local);
+			}
+			else {
+				msg(" ".$packages->{$pid}->{meta}->{name}.$local);
+			}
 		}
 	
 		msg();
 	
     }
-    
-    # print it 
-    msg("-"x40);
-    msg("Total of $total Packages installed.");     
-    msg();
     
 }
 
@@ -1832,8 +1869,14 @@ sub _remove {
         # now any directories
         foreach my $d ( @dirs ) {  
         
-            # remove any empty sub dirs
-            finddepth(sub { rmdir $_ if -d }, $d);
+            # remove any empty sub dirs rmdir $_ if -d 
+            finddepth(sub {
+            	if ( -d $_ ) {
+	            	unless ( $_ eq '.' || $_ eq '..' ) {
+	            		rmdir($_);
+	            	}
+	            }
+            }, $d);
             
             # remove the dir
             unless ( $d = ~ /\.svn/i ) {

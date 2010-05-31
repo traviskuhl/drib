@@ -14,9 +14,8 @@ meta CHANGELOG = changelog
 
 
 # depends
-depend external/php_zend	- -
-# depend drib/drib			1 99999
-
+depend cpan/JSON
+depend yum/httpd
 
 #set 
 set world yes
@@ -33,12 +32,8 @@ find - - - /home/test $(src) -depth -name "*.html"
 
 
 # settings file
-settings /home/test/text.conf ./test.conf
+settings /home/test/ test.conf
 
 
 # cron
-#cron 59 * * * * /home/bolt/libexec/platform/ingest/kickoff.php > /home/bolt/logs/platform/ingest/last.log
-
-# commands
-command pre-install "echo 'hello'";
-command post-install "echo 'hello'";
+cron 59 * * * * /home/bolt/libexec/platform/ingest/kickoff.php > /home/bolt/logs/platform/ingest/last.lo

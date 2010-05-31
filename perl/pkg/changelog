@@ -1,3 +1,9 @@
+Version 0.7
+* general cleanup
+* moved to better options handeling for install
+* added support for external repository handlers
+* better `list` output
+
 Version 0.6.19
 
 

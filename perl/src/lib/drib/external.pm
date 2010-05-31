@@ -12,6 +12,8 @@
 package drib::external;
 
 use Data::Dumper;
+use drib::utils;
+
 
 # what we can export
 our @EXPORT = qw(
@@ -23,7 +25,7 @@ my %mapper = (
     'yum' => \&yum,
     'pear' => \&pear,
     'pecl' => \&pecl,
-  #  'cpan' => \&cpan
+    'cpan' => \&cpan
 );
 
 # projects
@@ -50,8 +52,8 @@ sub pear {
     my $ver = shift;
     my $branch = shift;
 
-    # see if this version exist
-    print `sudo pear install $name-$ver`;
+	# run and output
+	prefix_output("sudo pear install $name-$ver","pear");    
     
 }
 
@@ -61,7 +63,8 @@ sub yum {
     my $ver = shift;
     my $branch = shift;
 
-    print `sudo yum install $name --version=$ver`;
+	# run and output
+	prefix_output("sudo yum install $name -y","yum");
 
 }
 
@@ -72,11 +75,23 @@ sub pecl {
     my $ver = shift;
     my $branch = shift;
 
-    print `sudo pecl install $name-$ver`;
+	# run and output
+	prefix_output("sudo pecl install $name-$ver","pecl");
 
 }
 
 # todo
 sub cpan {
 
+    # my
+    my $name = shift;
+    my $ver = shift;
+    my $branch = shift;
+
+	# repalce - with ::
+	$name =~ s/\-/::/g;
+	
+	# run and output
+	prefix_output("sudo cpan install $name","cpan");
+		
 }

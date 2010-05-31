@@ -47,7 +47,7 @@ chdir($tmp."/..");
 `tar -cf $name ./drib`;
 
 # copy to pub
-`cp $name /home/drib/share/htdocs/pub/drib`;
+`cp $name /home/bolt/share/htdocs/pub/drib/`;
 
 # now move it to builds
 `mv $name $pwd/archive`;
