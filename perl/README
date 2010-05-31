@@ -1,15 +1,17 @@
 usage: drib [options] command [sub-command] [command-options]
 
 List of Commands:
+ setup				 Setup drib
  help                Display this message
- self-install        Install the downloaded version of drib
- install             Install a package from dist
  config              Display or change a drib configuration
+ install             Install a package from dist 
  create              Create a package
+ dist				 Upload a package to dist
  remove              Remove an installed package
  set                 Update a package setting
  unset               Remove a package setting
  list                Show a list of installed packages
+ build				 Execute a build file
 
 Options:
  -h, --help         Show this message
@@ -17,15 +19,9 @@ Options:
 
 
 --------------------------------------------------------------- 
- Self Install
+ Setup
 --------------------------------------------------------------- 
-usage: drib self-install [-t type]
-
-    sub commands:   
-        none        
-    
-    options:
-        -t, --type=[type]       Install type, see `install` for list of types        
+useage drib setup
 
 
 --------------------------------------------------------------- 
@@ -44,13 +40,7 @@ usage drib config [key=value ...]
 --------------------------------------------------------------- 
  Install
 --------------------------------------------------------------- 
-usage: drib install <package|package-file> [-v version [-b branch]]  
-
-            'cleanup'=>'cleanup|c',        
-            'version'=>'version=s',
-            'branch'=>'branch=s',
-            'same' => 'same|s',
-            'downgrade' => 'downgrade',
+usage: drib install <package|package-file> 
 
     sub commands:
         package         Name of the package. Can also prfix the project and include
@@ -65,6 +55,8 @@ usage: drib install <package|package-file> [-v version [-b branch]]
         -c, --cleanup               Delete any package files used when creating a file
         -s, --same                  Allow drib to install the same currently installed package
         -d, --downgrade             Allow drib to install an older package than is currently installed
+        -h, --host=[host:port]		Hostname of server to run command on
+        	--depend				Install package dependenscies (use --no-depend to ignore dependencies)
                                         
     example
         drib install tester -v 0.1.1
@@ -77,15 +69,15 @@ usage: drib install <package|package-file> [-v version [-b branch]]
 --------------------------------------------------------------- 
  Create
 --------------------------------------------------------------- 
-usage: drib create <package-manifest> [--no-dist [-b branch [-i install [-t type]]]]
-
+usage: drib create <package-manifest> 
 
     sub commands:
         package-manifest       Path to the package manifest file
         
     options
-        --no-dist                   Do not send package to dist, save in pwd
-        -b, --branch=[branch]       Branch to install the package version to
+		-d, --dist					Send the created packge to dist
+		-c, --cleanup				Remove created file after creation
+		-p, --project=[project]		Project name
         -i, --install               After package is created, install locally        
         -t, --type=[type]           Build type:
                                         release = does a normal install (default)
@@ -94,8 +86,19 @@ usage: drib create <package-manifest> [--no-dist [-b branch [-i install [-t type
                                         symlink = symlinks all files 
         
     example:
-        drib create test.pkg -b nightly
+        drib create test.pkg -t nightly
         
+
+--------------------------------------------------------------- 
+ Dist
+---------------------------------------------------------------        
+usage: drib dist <package-file>
+
+	sub commands:
+		package-file			Path to package file 
+		
+	options:
+		-b, --branch=[branch]	Branch to install to
 
 --------------------------------------------------------------- 
  Set
