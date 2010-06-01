@@ -84,7 +84,7 @@ sub _parse {
 		if ( $#words == -1 ) { next; }
 	
 		# is it a comment
-		if ( $words[0] eq '#' || $words[0] eq '//' ) { next; }
+		if ( $words[0] eq '#' || substr($words[0],0,1) eq "#" || $words[0] eq '//' || substr($words[0],0,2) eq '//' ) { next; }
 	
 		# lw
 		my @lw = @words;
