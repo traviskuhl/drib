@@ -10,7 +10,7 @@
 #
 
 # package up
-package drib::host;
+package Drib::Host;
 
 # version number is good
 my $VERSION = "0.0.1";
@@ -24,7 +24,7 @@ use Net::SSH::Perl::Constants qw( :msg );
 
 
 # drib
-use drib::utils;
+use Drib::Utils;
 
 sub new {
 

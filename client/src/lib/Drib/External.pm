@@ -9,7 +9,7 @@
 # There is NO WARRANTY, to the extent permitted by law.
 #
 
-package drib::external;
+package Drib::External;
 
 use Data::Dumper;
 

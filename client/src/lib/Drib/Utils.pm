@@ -9,7 +9,7 @@
 # There is NO WARRANTY, to the extent permitted by law.
 #
 
-package drib::utils;
+package Drib::Utils;
 
 use Data::Dumper;
 use JSON;
@@ -94,12 +94,22 @@ sub file_put {
 
 sub fail {
 	my $msg = shift;
+	print "[ \033[31mFailure\033[0m ]  ";	
 	print $msg ."\n";
 	exit;
 }
 
 sub msg {
 	my $msg = shift;
+	my $status = shift;	
+	
+		if ( $status != 0 && $status != 200 ) {
+			print "[ \033[31mFailure\033[0m ]  ";
+		}
+		elsif ( $status == 200 ) {
+			print "[ \032[31mSuccess\033[0m ]  ";
+		}
+	
 	print $msg ."\n";
 }
 

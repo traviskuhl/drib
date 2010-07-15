@@ -9,7 +9,7 @@
 # There is NO WARRANTY, to the extent permitted by law.
 #
 
-package drib::db;
+package Drib::Db;
 
 my $VERSION = "0.0.1";
 
@@ -19,7 +19,7 @@ use POSIX;
 use Data::Dumper;
 
 # drib
-use drib::utils;
+use Drib::Utils;
 
 sub new {
 
@@ -33,6 +33,9 @@ sub new {
 	# get 
 	my $db = shift;
 	my $var = shift;	
+	
+	# loaded
+	$self->{loaded} = 0;
 
 	# load our dbs
 	$self->{var} = $var;
@@ -44,6 +47,21 @@ sub new {
 	# return
 	return $self;
 
+}
+
+# save on destory
+sub DESTROY {
+
+	# get yourself
+	my $self = shift;
+	
+	# make sure it was loaded ok
+	# before we save. don't want to
+	# save a bad version
+	if ( $self->{loaded} == 1 ) {
+		$self->save();
+	}
+	
 }
 
 sub all {
@@ -168,7 +186,17 @@ sub load {
 		`cp $file $bk$f`;
 	
 		# set 
-		$self->{content} = from_json(file_get( $file ));
+		eval {
+		
+			# self
+			$self->{content} = from_json(file_get( $file ));
+			
+			# loaded
+			if ( ref $self->{content} eq "SCALAR" ) {
+				$self->{loaded} = 1;
+			}
+			
+		}
 				
 	}
 	else {
