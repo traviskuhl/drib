@@ -114,7 +114,7 @@ sub run {
 		my $o = $opt = Getopt::Lucid->getopt( \@{$c->{options}} );	
 		
 		# run it
-		my $resp = $self->{modules}->{$c->{module}}->run({ 'options' => {$o->options}, 'args' => @ARGV });
+		my $resp = $self->{modules}->{$c->{module}}->run({$o->options}, @ARGV);
 		
 		# print the message
 		msg($resp->{message},$resp->{code});
@@ -168,19 +168,22 @@ sub loadModules {
 #		'Build'		=> "Drib::Cmd::Build",
 #		'Config'	=> "Drib::Cmd::Config",
 #		'Dist'		=> "Drib::Cmd::Dist",
-#		'Install'	=> "Drib::Cmd::Install",
+		'Install'	=> "Drib::Cmd::Install",
 #		'Settings'	=> "Drib::Cmd::Settings"
 	);
 	
-	# use it
-	use Drib::Cmd::Create;
 	
 	# loop through and get each ones configs
 	foreach my $mod ( keys %modules ) {
 	
+		$m = $modules{$mod};
+		$m =~ s/::/\//g; 
+	
+		# use
+		require "$m.pm";
+	
 		# new
 		my $m = $modules{$mod}->new($self);
-
 	
 		# get their commands
 		foreach my $cmd ( @{$m->{commands}} ) {

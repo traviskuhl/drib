@@ -82,21 +82,40 @@ sub new {
 sub run {
 
 	# get some stuff
-	my $self = shift;
-	my $a = shift;
+	my ($self, $opts, @args) = @_;
 
-	# args
-	my $opts = $a->{options};
-	my @args = $a->{args};
+	# nothing in args means we don't know what to do
+	if ( $#args == -1 ) {
+		return {
+			'code' => 404,
+			'message' => "No package given!"
+		};
+	}
+
+	# install for each one of the args
+	foreach my $file (@args) {
+		
+		# msg
+		my @msg = ();
+		
+		# try it
+		push(@msg, $self->install($file,$opts)->{message});
+	
+		# return to the parent with a general message
+		return {
+			'message' => join("\n",@msg),
+			'code' => 0
+		};
+	
+	}
 
 }
 
 # install
 sub install {
 
-
 	# given a file
-	my ($pkg_file,$opts) = @_;
+	my ($file, $opts) = @_;
 
 	# get commands
 	my ($pkg,$version,$file,$project);
