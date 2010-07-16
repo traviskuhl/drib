@@ -9,10 +9,10 @@
 # There is NO WARRANTY, to the extent permitted by law.
 #
 
-package drib::parser::text;
+package Drib::Parsers::Text;
 
 # what to use
-use drib::utils;
+use Drib::Utils;
 use Switch;
 use Data::Dumper;
 

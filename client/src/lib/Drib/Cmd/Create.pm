@@ -73,10 +73,12 @@ sub run {
 	
 	# get some stuff
 	my $self = shift;
-	my $opts = shift;
-	my $a = shift; 
-	my @args = @$a;
-	
+	my $a = shift;
+
+	# args
+	my $opts = $a->{options};
+	my @args = $a->{args};
+
 	# files
 	my @files = ();
 	
@@ -141,7 +143,7 @@ sub run {
 		my @msg = ();
 		
 		# try it
-		push(@msg, $self->_create($file,$opts));
+		push(@msg, $self->create($file,$opts)->{message});
 	
 		# return to the parent with a general message
 		return {
@@ -158,7 +160,7 @@ sub run {
 ##
 ## @brief create a package
 ##
-sub _create {
+sub create {
 
 	# file
 	my ($self, $file, $options) = @_;
@@ -193,7 +195,15 @@ sub _create {
 	file_put($tmp,$man);
 
 	# parse me 
-	my $p = $self->{drib}->parse($tmp);
+	my $p = $self->{drib}->parsePackageFile($file, $tmp);
+	
+		# if no
+		if ( $p == 0 ) {
+			return {
+				'code' => 500,
+				"message" => "Could not parse the package file"
+			};
+		}
 
 	# what we need 
 	# this is just to keep backwards compatable 
@@ -283,10 +293,10 @@ sub _create {
 
 	# now we need to create a tmp director
 	my $tdir_name = rand_str(10);
-	my $tdir = $TMP . "/" . $tdir_name;
+	my $tdir = $self->{tmp} . "/" . $tdir_name;
 
 	# create the dir
-	`sudo mkdir $tdir`;
+	mkdir($tdir);
 
 	# listsings of what we've created
 	my @listing = ();
@@ -585,7 +595,8 @@ sub _create {
 	# need to create our own version of the manifest
 	my $manifest = {
 	    'project' => $project,
-		'type' => $type,	
+		'type' => $type,
+		'name' => $Meta->{name},	
 		'meta' => $Meta,
 		'secure' => $Meta->{secure},
 		'set' => $Set,
@@ -616,46 +627,39 @@ sub _create {
 	# package
 	my $package = "$tdir/$pkg-$version.tar.gz";
 
-	# dist
-	if ( $type eq 'release' && $options{'dist'} == 1 ) {
-
-		# we want to do dist
-		return _do_dist("$name.tar.gz");
-
-	}
-	else {
-
-	    # or move the file back to the pwd 
-		`sudo mv $package $pwd`;
-
-	}
-
+    # or move the file back to the pwd 
+	`sudo mv $package $pwd`;
+		
 	# remove our tmp dir
 	`sudo rm -r $tdir`;
 
     # move back to current
     chdir $pwd;
 
-    # install
-    if ( $install ) {
-     
-        # run install
-        return _do_install($name.".tar.gz",{
-        	'cleanup' => $options{'cleanup'}
-        });
-        
-    }
-    else {
-   
-    	# done
-    	return {
+	# dist
+	if ( $options->{dist} == 1 ) {
+		
+		# run the dist
+		$self->{drib}->{modules}->{dist}->dist($package,$options); 
+
+
+	}
+	elsif ( $options->{install} == 1 ) {
+
+		# run the install
+		$self->{drib}->{modules}->{install}->install($package,$options);
+		
+	}
+	else {
+		
+		# all good
+		return {
     		"code" => 200,
     		"name" => $name,
     		"project" => $project,
-    		"response" => "Package Created: $name"
-    	};
-    	
-    }
-
+    		"message" => "Package Created: $name"		
+		};
+		
+	}
 
 }

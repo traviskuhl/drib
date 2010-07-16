@@ -49,14 +49,14 @@ sub new {
 
 	# get myself
 	my $self = {
-		'modules'	=> (),							# refs to modules
-		'commands'	=> 0,							# list of modules and their options
-		'parsers'	=> 0,							# list of available package file parsers
-		'config'	=> 0,							# ref to config db
-		'packages' 	=> 0,							# ref to packages db
-		'settings' 	=> 0,							# ref to settings db
-		'crons' 	=> 0,							# ref to crons db
-		'tmp'		=> 0			# our tmp director
+		'modules'	=> {},			# refs to modules
+		'commands'	=> {},			# list of modules and their options
+		'parsers'	=> {},			# list of available package file parsers
+		'config'	=> {},			# ref to config db
+		'packages' 	=> {},			# ref to packages db
+		'settings' 	=> {},			# ref to settings db
+		'crons' 	=> {},			# ref to crons db
+		'tmp'		=> ""			# our tmp director
 	};
 	
 	# bless and return me
@@ -72,7 +72,7 @@ sub new {
 	$self->{crons} 	  	= new Drib::Db('crons',$var);	
 	
 	# tmp 
-	$self->{tmp} = "/tmp/".rand_str(6);
+	$self->{tmp} = "/tmp/drib/".rand_str(6);
 	
 		# create our tmp director
 		mkdir($self->{tmp});	
@@ -102,8 +102,7 @@ sub run {
 	my $self = shift;
 	
 	# get cmd
-	my $cmd = shift(@ARGV);
-	
+	my $cmd = shift(@ARGV);	
 	
 	# see the cmd exists
 	if ( exists $self->{commands}->{$cmd} ) {
@@ -115,7 +114,7 @@ sub run {
 		my $o = $opt = Getopt::Lucid->getopt( \@{$c->{options}} );	
 		
 		# run it
-		my $resp = $self->{modules}->{$c->{module}}->run( {$o->options}, \@ARGV);
+		my $resp = $self->{modules}->{$c->{module}}->run({ 'options' => {$o->options}, 'args' => @ARGV });
 		
 		# print the message
 		msg($resp->{message},$resp->{code});
@@ -136,7 +135,7 @@ sub run {
 ##
 sub help {
 
-fail("drib $VERSION\nCopyright (C) Travis Kuhl 2009-10\n\nThis is free software.  You may redistribute copies of it under the terms of\nthe GNU General Public License <http://www.gnu.org/licenses/gpl.html>.\nThere is NO WARRANTY, to the extent permitted by law.");
+msg("drib $VERSION\nCopyright (C) Travis Kuhl 2009-10\n\nThis is free software.  You may redistribute copies of it under the terms of\nthe GNU General Public License <http://www.gnu.org/licenses/gpl.html>.\nThere is NO WARRANTY, to the extent permitted by law.");
 
 }
 
@@ -150,7 +149,7 @@ sub DESTROY {
 	my $self = shift;
 	
 	# remove our tmp director
-	`rm -r $self->{tmp}`;
+#	`rm -rf $self->{tmp}`;
 	
 }
 
@@ -170,7 +169,6 @@ sub loadModules {
 #		'Config'	=> "Drib::Cmd::Config",
 #		'Dist'		=> "Drib::Cmd::Dist",
 #		'Install'	=> "Drib::Cmd::Install",
-#		'Remove'	=> "Drib::Cmd::Remove",
 #		'Settings'	=> "Drib::Cmd::Settings"
 	);
 	
@@ -182,6 +180,7 @@ sub loadModules {
 	
 		# new
 		my $m = $modules{$mod}->new($self);
+
 	
 		# get their commands
 		foreach my $cmd ( @{$m->{commands}} ) {
@@ -196,7 +195,7 @@ sub loadModules {
 			push(@alias,$cmd->{name});
 			
 			# set it 
-			foreach my $a ( @alias ) {				
+			foreach my $a ( @alias ) {										
 				$self->{commands}->{$a} = $cmd;
 			}
 			
@@ -220,10 +219,10 @@ sub loadParsers {
 
 	# out of the box parsers
 	$self->{parsers} = {
-		'dpf'	=> "drib::parser::text",	# drib package file
-		'dppf'	=> "drib::parser::perl",	# drib perl package file
-		'djpf'	=> "drib::parser::json",	# drib json package file
-		'pkg'	=> "drib::parser::perl"		# for backwards compatability
+		'dpf'	=> "Drib::Parsers::Text",	# drib package file
+		'dppf'	=> "Drib::Parsers::Perl",	# drib perl package file
+		'djpf'	=> "Drib::Parsers::Json",	# drib json package file
+		'pkg'	=> "Drib::Parsers::Perl"		# for backwards compatability
 	};
 	
 }
@@ -237,6 +236,33 @@ sub loadParsers {
 sub parsePackageFile {
 	
 	# get self and package
-	my ($self,$file_name) = @_;
+	my ($self, $file_name, $file) = @_;
+	
+	# parser
+	my @parts = split(/\./,$file_name);
+
+	# get the exension
+	my $ext = pop(@parts);
+
+	# does this exist in the parsers array
+	if ( exists $self->{parsers}->{$ext} ) {
+	
+		# parse
+		my $parse = $self->{parsers}->{$ext};
+
+		# file 
+		my $pf = $parse;
+		   $pf =~ s/\:\:/\//g;
+		
+		# require
+		require $pf.".pm";
+		
+		# parse
+		return $parse->parse( $file );
+		
+	}
+	else {
+		return 0;
+	}
 
 }

@@ -10,10 +10,10 @@
 #
 
 # package me
-package drib::parser::perl;
+package Drib::Parsers::Perl;
 
 # what to use
-use drib::utils;
+use Drib::Utils;
 use Data::Dumper;
 
 # what we can export
