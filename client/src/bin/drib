@@ -53,10 +53,7 @@ sub new {
 		'modules'	=> {},			# refs to modules
 		'commands'	=> {},			# list of modules and their options
 		'parsers'	=> {},			# list of available package file parsers
-		'config'	=> {},			# ref to config db
 		'packages' 	=> {},			# ref to packages db
-		'settings' 	=> {},			# ref to settings db
-		'crons' 	=> {},			# ref to crons db
 		'tmp'		=> "",			# our tmp director
 		'var'		=> ""			# var folder
 	};
@@ -68,7 +65,6 @@ sub new {
 	$self->{var} = File::Spec->rel2abs("../test/var/");
 	
 	# load our dbs
-    $self->{config}     = new Drib::Db('config',$var);	  
 	$self->{packages}   = new Drib::Db('packges',$self->{var});
 	
 	# tmp 
@@ -169,8 +165,8 @@ sub loadModules {
 	my %modules = (
 		'Create'	=> "Drib::Cmd::Create",
 #		'Build'		=> "Drib::Cmd::Build",
-#		'Config'	=> "Drib::Cmd::Config",
-#		'Dist'		=> "Drib::Cmd::Dist",
+		'Config'	=> "Drib::Cmd::Config",
+		'Dist'		=> "Drib::Cmd::Dist",
 		'Install'	=> "Drib::Cmd::Install",
 		'Setting'	=> "Drib::Cmd::Setting",
 		'Cron'		=> "Drib::Cmd::Cron",
@@ -180,12 +176,9 @@ sub loadModules {
 	
 	# loop through and get each ones configs
 	foreach my $mod ( keys %modules ) {
-	
-		$m = $modules{$mod};
-		$m =~ s/::/\//g; 
-	
-		# use
-		require "$m.pm";
+		
+		# include module
+		$self->includeModule($modules{$mod});
 	
 		# new
 		my $m = $modules{$mod}->new($self);
@@ -214,6 +207,24 @@ sub loadModules {
 		$self->{modules}->{$mod} = $m;
 	
 	}
+
+}
+
+##
+## @brief load a module file from a mod name
+##
+## @param $name module name
+##
+sub includeModule {
+
+	# get
+	my ($self, $name) = @_;
+
+	# slashes
+	$name =~ s/::/\//g; 
+	
+	# require
+	require $name.".pm";
 
 }
 
