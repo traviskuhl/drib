@@ -192,7 +192,7 @@ sub load {
 			$self->{content} = from_json(file_get( $file ));
 			
 			# loaded
-			if ( ref $self->{content} eq "SCALAR" ) {
+			if ( ref $self->{content} eq "HASH" ) {
 				$self->{loaded} = 1;
 			}
 			
@@ -218,7 +218,7 @@ sub save {
 	$file = $self->{var}.'/'.$self->{db}.'.json';
 
     # save
-	open(_FH,">".$file);
+	open(_FH,">".$file) || die 'could not save';
 	print _FH to_json($content);
 	close(_FH);
 

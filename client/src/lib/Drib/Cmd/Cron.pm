@@ -1,5 +1,5 @@
 #
-#  Drib::Cmd::Setting
+#  Drib::Cmd::Cron
 # =================================
 #  (c) Copyright Travis Kuhl 2009-10
 #  
@@ -10,7 +10,7 @@
 #
 
 # package
-package Drib::Cmd::Setting;
+package Drib::Cmd::Cron;
 
 # version
 our $VERSION => "1.0";
@@ -46,21 +46,14 @@ sub new {
 		# commands
 		'commands' => [
 			{ 
-				'name' => 'set',
+				'name' => 'cron',
 				'help' => '', 
 				'alias' => [],
 				'options' => [
-
+					Switch('edit|e'),
+					Switch('list|l'),
 				]
-			},
-			{ 
-				'name' => 'unset',
-				'help' => '', 
-				'alias' => [],
-				'options' => [
-
-				]
-			}			
+			}
 		]
 		
 	};
@@ -71,44 +64,44 @@ sub new {
 }
 
 ##
-## @brief set a package setting
+## @brief add crons to execute
 ##
 ## @param $pid package id
-## @param $settings hashref of settings to set
+## @param $crons array of crons to add
 ##
-sub set {
+sub add {
+
+	
+
+}
+
+
+##
+## @brief remove crons for a package
+##
+## @param $pid package id
+##
+sub remove {
 
 
 }
 
 ##
-## @brief unset a package sett
-##
+## @brief edit the crons for a pacakge
+## 
 ## @param $pid package id
-## @param $settings hashref of setting to unset
 ##
-sub unset {
+sub edit {
 
 
 }
 
 ##
-## @brief get all settings for a package
+## @brief list crons for a package
 ##
 ## @param $pid package id
 ##
-sub get {
-
-
-}
-
-##
-## @brief add a list of settings files
-##
-## @param $pid package id
-## @param $files settings files
-##
-sub file {
+sub list {
 
 
 }

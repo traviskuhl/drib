@@ -41,7 +41,9 @@ sub new {
 		'drib' => $drib,
 		
 		# shortcuts
-		'tmp' => $drib->{tmp},
+		'tmp' => $drib->{tmp},				# tmp folder name
+		'dist' => $drib->{dist},			# dist instance
+		'packages' => $drib->{packages},	# packages db
 		
 		# commands
 		'commands' => [
@@ -68,7 +70,13 @@ sub new {
 					Switch('yes|y'),
 					Switch('unset|u'),
 				]			
-			}
+			},
+			{
+				'name' => 'list',
+				'help' => '',
+				'alias' => ['ls'],
+				'options' => []			
+			},
 		]
 		
 	};
@@ -78,35 +86,77 @@ sub new {
 
 }
 
-# run
+
+##
+## @brief parse the command line and execute proper sub
+##
+## @param $cmd the cammand given
+## @param $opts command line opts
+## @param @args list of arguments
+##
 sub run {
 
 	# get some stuff
-	my ($self, $opts, @args) = @_;
+	my ($self, $cmd, $opts, @args) = @_;
 
-	# nothing in args means we don't know what to do
-	if ( $#args == -1 ) {
-		return {
-			'code' => 404,
-			'message' => "No package given!"
-		};
+	# is cmd list or something simlar
+	if ( $cmd eq "list" ) {
+		$self->list(@args);
 	}
-
-	# install for each one of the args
-	foreach my $file (@args) {
-		
-		# msg
-		my @msg = ();
-		
-		# try it
-		push(@msg, $self->install($file,$opts)->{message});
+	else {
 	
-		# return to the parent with a general message
-		return {
-			'message' => join("\n",@msg),
-			'code' => 0
-		};
+		# nothing in args means we don't know what to do
+		if ( $#args == -1 ) {
+			return {
+				'code' => 404,
+				'message' => "No package given!"
+			};
+		}
 	
+	    # unless they've told us yes, ask if they want to remove the packages
+	    unless ( $cmd eq 'install' && $opts->{yes}  ) {
+	        
+	        # wait for an answer
+	        my $resp = ask("Are you sure you want to remove ".($#packages+1)." ".plural("package",$#packages). " [y|n]: ");
+	    	        
+	        # what
+	        if ( $resp ne "y" && $resp ne "yes" ) {
+	            return {
+	            	"code" => 412,
+	            	"message" => "You said you don't want to remove them"
+	            };
+	        }
+	    
+	    }	
+	
+		# install for each one of the args
+		foreach my $file (@args) {
+			
+			# msg
+			my @msg = ();
+			
+			# try it
+			if ( $cmd eq "remove" ) {
+				
+				# get a pid
+				my $pkg = $self->{drib}->parsePackageName($file);
+			
+				# push it
+				push(@msg, $self->remove($pkg->{pid})->{message});
+				
+			}
+			else {
+				push(@msg, $self->install($file, $opts)->{message});
+			}
+		
+			# return to the parent with a general message
+			return {
+				'message' => join("\n",@msg),
+				'code' => 0
+			};
+		
+		}
+		
 	}
 
 }
@@ -115,51 +165,7 @@ sub run {
 sub install {
 
 	# given a file
-	my ($file, $opts) = @_;
-
-	# get commands
-	my ($pkg,$version,$file,$project);
-
-	# options
-	my $o_host		= $opts->{host} || 0;								# remote host
-	my $o_depend	= (defined $opts->{depend} ? $opts->{depend} : 1);	# install dependencies
-	my $o_cleanup	= $opts->{cleanup} || 0;							# cleanup after install
-	my $o_project	= $opts->{project} || 0;							# project
-	my $o_branch	= $opts->{branch} || "current";						# branch
-	my $o_version	= $opts->{version} || $o_branch;					# version
-	my $o_same		= $opts->{same} || 0;								# install same pakage
-	my $o_downgrade	= $opts->{downgrade} || 0;							# downgrade from newer package
-
-	# check for host
-	if ( $o_host ) {
-
-		# remove host
-		$ocmd =~ s/-h(ost)?=?.*//gi;
-
-		# host
-		my $h = new drib::host($o_host);
-
-		# cmd
-		$cmd = "sudo drib " . $ocmd;
-
-		# run the command
-		my ($r,$msg) = $h->cmd($cmd);
-
-		# tell them
-		if ( $r ) {
-			return {
-				"code" => 200,
-				"response" => "$pkg_file was installed on $o_host",
-			}
-		}
-		else {
-			return {
-				"code" => 400,
-				"response" => "$pkg_file could not be installed on $o_host"
-			};
-		}
-
-	}
+	my ($self, $file, $opts) = @_;
 
 	# where are we now
 	my $start_pwd = getcwd();  	
@@ -170,26 +176,31 @@ sub install {
 
 	# if package has .tar.gz
 	# we don't need to go to dist
-	if ( $pkg_file =~ /\.tar\.gz/ ) {    
+	if ( $file =~ /\.tar\.gz/ ) {    
 
         # where
-        unless ( -e "./$pkg_file" ) {
+        unless ( -e "./$file" ) {
             return {
             	"code" => 404,
-            	"response" => "Package file $pkg_file does not exists"
+            	"response" => "Package file $file does not exists"
             };
         }
      
         # get it 
-        $file = file_get($pkg_file);	
+        $file = file_get($file);	
         
         # if cleanup
-        if ( $o_cleanup ) {
+        if ( $opts->{cleanup} == 1 ) {
             `sudo rm $pkg_file`;
         }
         
         # manifest
-        my $r = _unpack_package_tar($file);
+        my $r = $self->{drib}->unpackPackageFile($file);
+        
+        	# check the code
+        	if ( $r->{code} != 200 ) {
+        		return $r;
+        	}
         
         # save it
         $manifest = $r->{manifest};
@@ -205,57 +216,42 @@ sub install {
 	else {
 
         # get package name
-        my $p = _parse_pkg_name($pkg_file);
+        my $p = $self->{drib}->parsePackageName($file);
         
         # set it 
         $project    = $p->{project};
         $pkg        = $p->{name};
-        $version    = $p->{version} || 'current';
-    	
-        # check for external projects
-        if ( in_array(\@drib::external::PROJECTS,$project) ) {
-        
-            # what happeend
-            &drib::external::_map($project,$pkg,$version);
-                        
-		    # make a pid
-		    my $pid = _get_pid($project,$pkg);
-
-			# add package to our package db
-			$PACKAGES->set($pid, { 'project' => $project, 'meta' => { 'name' => $pkg, 'version' => 0 }} );
-
-		    # set it 
-		    $PACKAGES->add($pkg,$pid,'map');
-            
-            # all done
-            return;
-            
-        }   
-    
+        $version    = $p->{version} || ( $opts->{branch} || 'current' );
+    	    
     	# now we need to check with dist 
     	# to see if this package exists 
-    	my $exists = $DIST->check($project,$pkg,$version);
+    	my $exists = $self->{dist}->check($project, $pkg, $version);
     
     	# if it exists we need to error
     	unless ( $exists ) {
     		return {
     			"code" => 404,
-    			"response" => "Package $pkg-$version does not exist."
+    			"response" => "Package $project/$pkg-$version does not exist."
     		};
     	}
     
     	# ok so we now have it 
     	# so lets get the file
-    	$file = $DIST->get($project,$pkg,$version);    
+    	$file = $self->{dist}->get($project, $pkg, $version);    
     
     	# unpack
-    	my $r  = _unpack_package_tar($file);
+    	my $r  = $self->{drib}->unpackPackageFile($file);
+    	
+        	# check the code
+        	if ( $r->code != 200 ) {
+        		return $r;
+        	}    		
     	
     	# set it 
     	$manifest = $r->{manifest};
     
     	# check if the package ist installed
-    	my $installed = $PACKAGES->get($p->{pid});
+    	my $installed = $self->{packages}->get($p->{pid});
     
     		# if yes is it the same version
     		if ( $installed ) {
@@ -300,10 +296,10 @@ sub install {
 		foreach my $item ( @{$manifest->{depend}} ) {
 
 			# parse a package name
-			my $p = _parse_pkg_name($item->{pkg});
+			my $p = $self->{drib}->parsePackageName($item->{pkg});
 
 			# package
-			my $i = $PACKAGES->get($p->{pid});
+			my $i = $drib->{packages}->get($p->{pid});
 
 			# min and max
 			my $min = $item->{min} || 0;
@@ -363,7 +359,7 @@ sub install {
 			foreach my $p ( @install ) {
 
 				# return
-				my $r = _do_install($p);
+				my $r = $self->install($p);
 
 				# try to install
 				msg($r->{response});
@@ -371,10 +367,13 @@ sub install {
 			}
 
 			# move back to start pwd
-			chdir $start_pwd;			
+			chdir $start_pwd;
+			
+			# no depend
+			$opts->{depend} = 0;
 
 			# now try reinstalling the package file
-			return _do_install($pkg_file,{'depend' => 0});		
+			return $self->install($pkg_file, $opts);		
 
 		}
 
@@ -382,71 +381,18 @@ sub install {
 
 
 	# get a package name
-	my $p = _parse_pkg_name($manifest->{project}."/".$manifest->{meta}->{name});
+	my $p = $self->{drib}->parsePackageName($manifest->{project}."/".$manifest->{meta}->{name});
 
 	# check if the package ist installed
-	my $installed = $PACKAGES->get($p->{pid});
+	my $installed = $self->{packages}->get($p->{pid});
 
 		# installed we should remove
 		if ( $installed ) {
-
-			# since we're still moving on
-			# we need to remove the current file
-			my @rm = ($p);	
-
-			# remove 
-			_remove(\@rm);		   
-
+			$self->remove( $p->{pid} );
 		}
-
-	# check if it's a secure package
-	if ( $manifest->{secure} != 0 && -e $tdir."/encrypted" ) {
-
-		# ask for the passphrase 
-		my $passphrase = md5_hex( ask("This package is secured, please enter the Passphrase:",1) );
-
-		# now try to encrypt that tar file
-		my $cipher = Crypt::CBC->new( 
-			-key 	=> $passphrase,
-			-cipher => 'Blowfish'
-		);
-
-		# open the encrypted file
-		my $enc = file_get("$tdir/encrypted");
-
-		# try to unencrypt the file
-		my $tar = $cipher->decrypt($enc);
-
-		# now put it pack
-		file_put("$tdir/secure.tar",$tar);
-
-		# try to untar it 
-		`sudo tar -xf $tdir/secure.tar 2>/dev/null`;
-
-		# check for a good file
-		if ( -e "$tdir/secure/.good" ) {
-
-			# move everything from secure into tdir
-			`sudo mv -f $tdir/secure/* $tdir`;		
-
-			# remove some files
-			`sudo rm -rf $tdir/.good $tdir/encrypted $tdir/secure $tdir/secure.tar`;
-
-			# should be good to go now
-
-		}
-		else {
-			return {
-				"code" => 403,
-				"response" => "The Passphrase you tried for '".$manifest->{meta}->{name}."' was incorrect. Try again!"
-			};
-		}
-
-	}
-
 
 	# run pre-install commands
-	_exec_commands($manifest,'pre-install');
+	$self->{drib}->{modules}->{Command}->exec('pre-install', $manifest);
 
 	# now lets get a list of all directories
 	# and move them into place
@@ -464,20 +410,20 @@ sub install {
 	}
 
     # make a pid
-    my $pid = _get_pid($manifest->{project},$manifest->{meta}->{name});
+    my $pid = $self->{drib}->getPid($manifest->{project},$manifest->{meta}->{name});
     
     # don't need raw or changelog
     $manifest->{raw} = "";
     $manifest->{changelog} = "";
     
 	# add package to our package db
-	$PACKAGES->set($pid,$manifest);
+	$self->{packages}->set($pid, $manifest);
     
     # set it 
-    $PACKAGES->add($manifest->{meta}->{name},$pid,'map');
+    $self->{packages}->add($manifest->{meta}->{name}, $pid, 'map');
 
 	# get settings for this file 
-	my $curset = $SETTINGS->get($pid) || {}; 
+	my $curset = $self->{drib}->{modules}->{Setting}->get($pid) || {}; 
 
     # any settings should always stay the same
     foreach $k ( keys %{$manifest->{set}} ) {
@@ -487,123 +433,180 @@ sub install {
     }
     
     # set settings
-    $SETTINGS->set($pid,$curset);
+    $self->{drib}->{modules}->{Setting}->set($pid, $curset);
     
     # set files
-    $SETTINGS->set($pid,$manifest->{set_files},'files');
-    
-    # _update_settings_txt_file
-    _update_settings_txt_file();
+    $self->{drib}->{modules}->{Setting}->file($pid, $manifest->{set_files});
 
-    # perform set file updates
-    _write_settings_files($manifest->{set_files},$curset);
-
-	# cron 
-	if ( $manifest->{crons} ) {
-
-		# crons 
-		my @crons = ();
-
-		# loop me
-		foreach my $c ( @{$manifest->{crons}} ) { 
-			push(@crons,$c->{cmd});
-		}	
-
-		# add to package list
-		$CRONS->set($pid,\@crons);
-
-		# update
-		_rebuild_crons();
-
-	}
-
+	# add crons
+	$self->{drib}->{modules}->{Cron}->add($pid, $manifest->{crons} );
 
     # cleanup our tmp dir
     `sudo rm -fr $tdir`;    
     
 	# run pre-install commands
-	_exec_commands($manifest,'post-install');    
-
+	$self->{drib}->{modules}->{Command}->exec('post-install', $manifest);    
+    
 	# tell them what up
 	return {
 		"code" => 200,
-		"response" => "Package $manifest->{meta}->{name} installed!"
+		"message" => "Package $manifest->{meta}->{project}/$manifest->{meta}->{name} installed!"
 	};
 
 
 }
 
+
+##
+## @brief remove a package
+##
+## @param $pid package id
+## @param $opts options
+##
 sub remove {
 
 	# get packages
-	my ($packages) = @_;
+	my ($self, $pid, $opts) = @_;
+    
+    # get the manifest 
+    my $manifest = $self->{packages}->get($pid);
 
-    # now loop through the packages and remove
-    foreach my $pkg ( @{$packages} ) {
-    
-        # get the manifest 
-        my $manifest = $PACKAGES->get($pkg->{pid});
-    
-        # dirs
-        my @dirs = ();
-    
-        # loop through the files array and remove
-        # any files. after we'll loop through 
-        foreach my $f ( @{$manifest->{files}} ) {
-            
-            # is a directory
-            if ( -d $f ) {
-                push @dirs, $f;
-            }
-            else {
-                `sudo rm -f $f`;
-            }
-            
-        }
-         
-        # now any directories
-        foreach my $d ( @dirs ) {  
-        
-            # remove any empty sub dirs rmdir $_ if -d 
-            finddepth(sub {
-            	if ( -d $_ ) {
-	            	unless ( $_ eq '.' || $_ eq '..' ) {
-	            		rmdir($_);
-	            	}
-	            }
-            }, $d);
-            
-            # remove the dir
-            unless ( $d = ~ /\.svn/i ) {
-            	rmdir($d);
-            }
-            
-        }
+		# no manifest means no package
+		unless ( $manifest ) {
+			return {
+				'code' => 404,
+				'message' => "Package does not exists"
+			}
+		}
 
-        # check if they want us to remove
-        # the settings
-        if ( $options{'unset'} ) {
-            
-            # settings
-            my $settings = $SETTINGS->get($pid);            
-            
-            # get all settings for this package
-            foreach my $k ( keys %{$settings} ) {
-                &unset($pid,$k,1);
-            }
-   
+    # dirs
+    my @dirs = ();
+
+    # loop through the files array and remove
+    # any files. after we'll loop through 
+    foreach my $f ( @{$manifest->{files}} ) {
+        
+        # is a directory
+        if ( -d $f ) {
+            push @dirs, $f;
+        }
+        else {
+            `sudo rm -f $f`;
         }
         
-        # now remove the package from the packages db
-        $PACKAGES->unset($pkg->{pid});
+    }
+     
+    # now any directories
+    foreach my $d ( @dirs ) {  
+            
+        # remove the dir
+       	rmdir($d);
         
-        # remove crons
-        $CRONS->unset($pkg->{pid});
-    
     }
 
-	# rebuild crons
-	_rebuild_crons();
+    # check if they want us to remove
+    # the settings
+    if ( $opts->{'unset'} ) {
+		$self->{drib}->{modules}->{Setting}->unset($pid);        
+    }
+    
+    # now remove the package from the packages db
+    $self->{packages}->unset($pid);
+    
+    # remove crons
+    $self->{drib}->{modules}->{Cron}->remove($pid);
+    
+    # message
+    return {
+    	'code' => 200,
+		"message" => "Package $manifest->{meta}->{project}/$manifest->{meta}->{name} removed!"
+    };
 
+}
+
+##
+## @brief list all installed packages
+##
+## @param $args list of command args
+##
+sub list {
+
+	# args
+	my ($self, @args) = @_;
+
+
+    # project
+    my $project = shift @args || 'all'; 
+        
+    # get a list of packages
+    my $packages = $self->{packages}->all('default');
+    
+    # array
+	my %projects = ();
+	my $total = 0;
+    
+    # loop
+    foreach my $pid ( keys %{$packages} ) {
+    
+        # get the package            
+        my $p = $packages->{$pid};        
+
+		# either we're showing all
+		# or we aren't showing all and we're showing the package
+		if ( $project eq "all" || ( $project ne 'all' && $project eq $p->{project} ) && $p->{project} ) {
+
+			# push to projects
+			$projects{$p->{project}} = () unless defined $projects{$p->{project}};
+
+	    	# add it
+			$projects{$p->{project}}{$pid} = 1;
+
+	    	# one more
+	    	$total++;
+
+	    }
+    
+    }
+    
+    # print it 
+    msg("-"x40);      
+    msg("Total of $total Packages installed.");       
+    msg("-"x40);      
+            
+    # print them
+    foreach my $pr ( keys %projects ) {
+		
+		if ( $pr ) {
+			
+			# name
+			msg( $pr );
+	
+			# each package
+			foreach my $pid ( keys %{$projects{$pr}} ) {
+	
+				# local
+				my $local = "";
+	
+					# if local
+					if ( defined $packages->{$pid}->{meta}->{local} ) {
+						$local = " (Build: ".$packages->{$pid}->{meta}->{local}.")";
+					}
+	
+				if ( $packages->{$pid}->{meta}->{version} != 0 ) {
+					msg(" ".$packages->{$pid}->{meta}->{name}."-".$packages->{$pid}->{meta}->{version}.$local);
+				}
+				else {
+					msg(" ".$packages->{$pid}->{meta}->{name}.$local);
+				}
+			}
+	
+			msg();
+			
+		}
+
+    }
+
+	# exit out
+	exit;
 
 }

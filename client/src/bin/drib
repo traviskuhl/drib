@@ -22,6 +22,7 @@ use Getopt::Lucid qw( :all );
 use Data::Dumper;
 use File::Basename;
 use File::Find;
+use File::Spec;
 use POSIX;
 use Digest::MD5 qw(md5_hex);
 use Crypt::CBC;
@@ -63,7 +64,7 @@ sub new {
 	bless($self);	
 	
 	# var direcotry
-	my $var = "../test/var/";
+	my $var = File::Spec->rel2abs("../test/var/");
 	
 	# load our dbs
     $self->{config}     = new Drib::Db('config',$var);	  
@@ -114,7 +115,7 @@ sub run {
 		my $o = $opt = Getopt::Lucid->getopt( \@{$c->{options}} );	
 		
 		# run it
-		my $resp = $self->{modules}->{$c->{module}}->run({$o->options}, @ARGV);
+		my $resp = $self->{modules}->{$c->{module}}->run($c->{name}, {$o->options}, @ARGV);
 		
 		# print the message
 		msg($resp->{message},$resp->{code});
@@ -169,7 +170,9 @@ sub loadModules {
 #		'Config'	=> "Drib::Cmd::Config",
 #		'Dist'		=> "Drib::Cmd::Dist",
 		'Install'	=> "Drib::Cmd::Install",
-#		'Settings'	=> "Drib::Cmd::Settings"
+		'Setting'	=> "Drib::Cmd::Setting",
+		'Cron'		=> "Drib::Cmd::Cron",
+		'Command'	=> "Drib::Cmd::Command",
 	);
 	
 	
@@ -267,5 +270,102 @@ sub parsePackageFile {
 	else {
 		return 0;
 	}
+
+}
+
+
+##
+## @brief unpackage a tared package file
+##
+## @param $tar tared package file
+##
+sub unpackPackageFile {
+
+	# get the tar
+	my ($self, $tar) = @_;
+
+	# make a tmp dir
+	my $tdir = $self->{tmp} . "/" . rand_str(10);
+
+	# make it 
+	mkdir($tdir);
+
+	# save the file to tdir 
+	file_put($tdir."/pkg",$tar);
+
+	# now move into the tmp dir 
+	chdir $tdir;
+
+	# untar the file
+	`sudo tar -xzf pkg`;
+
+	# remove pkg
+	`rm pkg`;
+	
+	# check for manifest
+	unless ( -e $tdir."/.manifest" ) {
+		return {
+			'code' => 404,
+			"message" => "No manifest in package file"
+		};
+	}
+	else {
+		return {
+			'code' => 200,
+			'tmp' => "$tdir",
+			'manifest' => from_json( file_get($tdir.'/.manifest') )
+		};
+	}
+	
+}
+
+##
+## @brief parse a given string for package name and
+##			other info
+##
+## @param $name package name string
+##
+sub parsePackageName {
+
+    # get the raw package name
+    my ($self, $name) = @_;
+
+    # first explode for version
+    ($part,$version) = split(/-/,$name);
+
+    # now explode for the project and name
+    ($project,$pkg) = split(/\//,$part);
+
+    # if no pkg, it must not have a project
+    if ( !$pkg ) {
+        $pkg = $project;
+        $project = 'default';
+    }
+    
+    # give back an object
+    return { 
+    	'full' => "$project/$pkg-$version", 
+    	'name' => $pkg, 
+    	'project' => $project, 
+    	'version' => $version, 
+    	'pid' => $self->getPid($project,$pkg) 
+    };
+
+}
+
+
+##
+## @brief create a package unque package id
+##
+## @param $project name of project
+## @param $package name of package
+##
+sub getPid {
+
+    # project
+    my ($self, $project, $name) = @_;
+    
+    # give back the hash
+    return  md5_hex($project."-".$name);
 
 }

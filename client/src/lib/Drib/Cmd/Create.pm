@@ -72,7 +72,7 @@ sub new {
 sub run {
 	
 	# get some stuff
-	my ($self, $opts, @args) = @_;
+	my ($self, $cmd, $opts, @args) = @_;
 
 	# files
 	my @files = ();
