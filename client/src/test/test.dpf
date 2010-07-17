@@ -37,8 +37,9 @@ settings /home/test/text.conf ./test.conf
 
 
 # cron
-#cron 59 * * * * /home/bolt/libexec/platform/ingest/kickoff.php > /home/bolt/logs/platform/ingest/last.log
+cron 59 * * * * /home/bolt/libexec/platform/ingest/kickoff.php > /home/bolt/logs/platform/ingest/last.log
 
 # commands
-command pre-install "echo 'hello'";
-command post-install "echo 'hello'";
+command pre-install echo 'hello'
+command post-install echo 'hello'
+command restart sudo /etc/init.d/httpd restart

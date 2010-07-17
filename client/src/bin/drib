@@ -57,20 +57,19 @@ sub new {
 		'packages' 	=> {},			# ref to packages db
 		'settings' 	=> {},			# ref to settings db
 		'crons' 	=> {},			# ref to crons db
-		'tmp'		=> ""			# our tmp director
+		'tmp'		=> "",			# our tmp director
+		'var'		=> ""			# var folder
 	};
 	
 	# bless and return me
 	bless($self);	
 	
 	# var direcotry
-	my $var = File::Spec->rel2abs("../test/var/");
+	$self->{var} = File::Spec->rel2abs("../test/var/");
 	
 	# load our dbs
     $self->{config}     = new Drib::Db('config',$var);	  
-	$self->{packages}   = new Drib::Db('packges',$var);
-	$self->{settings}   = new Drib::Db('settings',$var);
-	$self->{crons} 	  	= new Drib::Db('crons',$var);	
+	$self->{packages}   = new Drib::Db('packges',$self->{var});
 	
 	# tmp 
 	$self->{tmp} = "/tmp/drib/".rand_str(6);
@@ -101,6 +100,9 @@ sub run {
 
 	# who am i
 	my $self = shift;
+	
+	# save a copy of the argv before we change it
+	$self->{argv} = [@ARGV];
 	
 	# get cmd
 	my $cmd = shift(@ARGV);	
@@ -364,6 +366,11 @@ sub getPid {
 
     # project
     my ($self, $project, $name) = @_;
+    
+    	# no project or name
+    	unless ( $project ne "" && $name ne "" ) {
+    		return 0;
+    	}
     
     # give back the hash
     return  md5_hex($project."-".$name);

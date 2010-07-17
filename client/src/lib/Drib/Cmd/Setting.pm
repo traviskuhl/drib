@@ -43,6 +43,9 @@ sub new {
 		# shortcuts
 		'tmp' => $drib->{tmp},
 		
+		# db shortcut
+		'db' => new Drib::Db('settings',$drib->{var}),
+		
 		# commands
 		'commands' => [
 			{ 
@@ -71,6 +74,69 @@ sub new {
 }
 
 ##
+## @brief parse the command line and execute proper sub
+##
+## @param $cmd the cammand given
+## @param $opts command line opts
+## @param @args list of arguments
+##
+sub run {
+
+	# get some stuff
+	my ($self, $cmd, $opts, @args) = @_;
+
+	# what cmd
+	if ( scalar(@args) >= 2 && ($cmd eq "set" || $cmd eq "unset") ) {
+	
+		# package
+		my $name = shift @args;
+	
+		# try to get a pid
+		my $pkg = $self->{drib}->parsePackageName($name);
+	
+			# no package
+			unless ( $self->{drib}->{packages}->get($pkg->{pid}) ) {
+				return {
+					'code' => 404,
+					'message' => "Could not find package $name"
+				};
+			}
+			
+		# settings
+		my $settings = {};
+		
+			# loop each arg and set
+			foreach my $a ( @args ) {
+				
+				# get key and value
+				my ($key,$val) = split(/=/,$c,2);
+			
+				# sett it
+				$settings->{$key} = $val;
+			
+			}
+			
+		# set or unset the settings
+		if ( $cmd eq "set" ) {
+			$self->set($pkg->{pid}, $settings);
+		}
+		else {
+			$self->unset($pkg->{pid}, $settings);
+		}
+	
+	}
+	else {
+		
+		# just list them
+		$self->list();
+		
+	}
+
+	
+}
+
+
+##
 ## @brief set a package setting
 ##
 ## @param $pid package id
@@ -78,6 +144,27 @@ sub new {
 ##
 sub set {
 
+	# get
+	my ($self, $pid, $settings) = @_;
+
+	# get the current list of settings
+	my $cur = $self->get($pid) || {};
+	
+	# loop and add
+	foreach my $key ( keys %$settings ) {
+		if ( $key ne "" ) {
+			$cur->{$key} = $settings->{$key};
+		}
+	}
+
+	# now save it 
+	$self->{db}->set($pid,$cur);
+
+	# rebuild files
+	$self->_rebuild_files($pid);
+	
+	# rebuild setting files
+	$self->_rebuild_settings_file();
 
 }
 
@@ -88,7 +175,43 @@ sub set {
 ## @param $settings hashref of setting to unset
 ##
 sub unset {
+	
+    # stuff
+    my ($self, $pid, @vars) = @_;
+    
+    # vars
+    my @vars = ();
+        
+    # make sure package is installed
+    unless ( $self->{drib}->{packages}->get($pid) ) {
+        return {
+        	'code' => 404,
+        	'message' => "Package is not installed"
+        };
+    }
 
+    # get all settings
+    my $settings = $self->get($pid);
+    
+    # now loop through and get settings
+    foreach my $var ( @vars ) {
+        delete $settings->{$var};
+    }
+
+    # reset settings
+    $self->{db}->set($pid, $settings);
+
+    # regen text files
+	$self->_rebuild_files();
+	
+	# rebuild setting files	
+	$self->_rebuild_settings_file();
+
+	# done
+	return {
+		'code' => 200,
+		"message" => "Settings removed!"
+	}
 
 }
 
@@ -99,6 +222,11 @@ sub unset {
 ##
 sub get {
 
+    # stuff
+    my ($self, $pid) = @_;
+
+	# return
+	return $self->{db}->get($pid);
 
 }
 
@@ -108,7 +236,180 @@ sub get {
 ## @param $pid package id
 ## @param $files settings files
 ##
-sub file {
+sub files {
 
+    # stuff
+    my ($self, $pid, $files) = @_;
+
+	# files
+	$self->{db}->set($pid, $files,'files');
+
+	# rebuild or build
+	$self->_rebuild_files();
+
+}
+
+
+##
+## @brief list of all settings
+##
+## @param $args array of argvals
+##
+sub list {
+	
+	# self
+	my ($self, $opts, $name) = @_;
+
+    # get all settings
+    my $settings = $self->{db}->all();
+    
+    # project 
+    my $packages = 0;
+	my $pid = 0;
+    
+	# first cmd
+	if ( $name ) {
+			
+		# prase
+		my $pkg = $self->{drib}->parsePackageName( $name );
+		
+		# set it 
+		if ( $pkg->{pid} ) {
+		
+			# set packages
+			$packages = { $pkg->{pid} => $self->{drib}->{packages}->get($pkg->{pid}) };
+			
+			# set pid
+			$pid = $pkg->{pid};
+	
+		}
+		
+	}
+	
+	# need to get packages
+	if ( $packages == 0 ) {
+		
+		# all packages
+		$packages = $self->{drib}->{packages}->all();
+	
+	}
+	
+    # print them
+    foreach my $p ( keys %{$packages} ) {
+        
+        # settings
+        my $s = $settings->{$p};
+        
+        # only show if we have at least one setting
+        if ( $s != 0 && ( ref $s eq "HASH" && scalar(keys %{$s}) > 0 ) ) {
+                
+        	# project 
+        	if ( ($pid == 0) || ( $pid != 0 && $pid eq $p ) ) {
+	        
+	            # print the package name            
+	            msg("$packages->{$p}->{project}/$packages->{$p}->{meta}->{name}");
+	              
+	            # deref
+				my %vals = %$s;           
+	                
+	            # loop and show
+	            foreach my $key ( sort keys %vals ) {
+	                msg(" $key: $vals{$key} ");
+	            }
+	            
+	            msg();
+	            
+	        }
+            
+        }
+        
+    }
+
+	# exit out
+	exit();
+
+}
+
+
+##
+## @brief rebuild package settings files
+##
+## @param $pid package file
+##
+sub _rebuild_files {
+
+	# get 
+	my ($self, $pid) = @_;
+
+	# get the manifest
+	my $manifest = $self->{drib}->{packages}->get($pid);
+
+    # what 
+    my $files = $manifest->{set_files};
+    my $settings = $self->{db}->get($pid);
+
+    # open each file
+    foreach my $item ( @{$files} ) {
+            
+        # file
+        my $file = $item->{file};
+        
+        # content            
+        my $content =  $item->{tmpl};
+    
+        # loop through each setting
+        foreach my $key ( keys %{$settings} ) {
+            $content =~ s/\$\($key\)/$settings->{$key}/g;
+        }
+        
+        # write back the file
+        file_put($file,$content);
+    
+    }
+
+}
+
+
+##
+## @brief rebuild the settings txt file
+##
+sub _rebuild_settings_file {
+
+	# self
+	my ($self) = @_;
+
+	# file
+	$txt = "";
+
+    # packages
+	my $packages = $self->{drib}->{packages}->all();    
+
+    # get all settings
+    my $settings = $self->{db}->all();
+
+    # print them
+    foreach my $pid ( keys %{$packages} ) {
+        
+        # settings
+        my $s = $settings->{$pid};
+        
+        # only show if we have at least one setting
+        if ( $s != 0 && ( ref $s eq "HASH" && scalar(keys %{$s}) > 0 ) ) {
+        
+   
+            # loop and show
+            foreach my $key ( keys %{$s} ) {
+                
+				# set it 
+				$txt .= $packages->{$pid}->{project}."_".$packages->{$pid}->{meta}->{name}."__".$key."|".$s->{$key}."\n";
+                
+            }
+
+        }
+        
+    }	
+
+	# save it
+	file_put("/usr/var/drib/settings.txt",$txt);
 
 }

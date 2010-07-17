@@ -634,15 +634,21 @@ sub create {
 	# dist
 	if ( $options->{dist} == 1 ) {
 		
+		# message created
+		msg("Package Created: $name");
+		
 		# run the dist
-		$self->{drib}->{modules}->{dist}->dist($package,$options); 
+		return $self->{drib}->{modules}->{Dist}->dist(basename($package),$options); 
 
 
 	}
 	elsif ( $options->{install} == 1 ) {
 
+		# message created
+		msg("Package Created: $name");
+
 		# run the install
-		$self->{drib}->{modules}->{install}->install($package,$options);
+		return $self->{drib}->{modules}->{Install}->install(basename($package),$options);
 		
 	}
 	else {

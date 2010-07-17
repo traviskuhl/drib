@@ -114,7 +114,7 @@ sub run {
 		}
 	
 	    # unless they've told us yes, ask if they want to remove the packages
-	    unless ( $cmd eq 'install' && $opts->{yes}  ) {
+	    if ( $cmd eq "remove" && $opts->{yes} == 0 ) {
 	        
 	        # wait for an answer
 	        my $resp = ask("Are you sure you want to remove ".($#packages+1)." ".plural("package",$#packages). " [y|n]: ");
@@ -187,15 +187,15 @@ sub install {
         }
      
         # get it 
-        $file = file_get($file);	
+        $tar = file_get($file);	
         
         # if cleanup
         if ( $opts->{cleanup} == 1 ) {
-            `sudo rm $pkg_file`;
+            `sudo rm $file`;
         }
         
         # manifest
-        my $r = $self->{drib}->unpackPackageFile($file);
+        my $r = $self->{drib}->unpackPackageFile($tar);
         
         	# check the code
         	if ( $r->{code} != 200 ) {
@@ -206,7 +206,7 @@ sub install {
         $manifest = $r->{manifest};
         
         # local
-        $local = $pkg_file;
+        $local = $file;
         $local =~ s/\.tar\.gz//;
         
         # add to manifest
@@ -436,7 +436,7 @@ sub install {
     $self->{drib}->{modules}->{Setting}->set($pid, $curset);
     
     # set files
-    $self->{drib}->{modules}->{Setting}->file($pid, $manifest->{set_files});
+    $self->{drib}->{modules}->{Setting}->files($pid, $manifest->{set_files});
 
 	# add crons
 	$self->{drib}->{modules}->{Cron}->add($pid, $manifest->{crons} );

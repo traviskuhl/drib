@@ -181,19 +181,22 @@ sub load {
 	
 	# doesn't exist
 	if ( -e $file ) {
-			
-		# make a backup copy
-		`cp $file $bk$f`;
-	
+				
 		# set 
 		eval {
-		
+						
 			# self
 			$self->{content} = from_json(file_get( $file ));
 			
 			# loaded
 			if ( ref $self->{content} eq "HASH" ) {
+			
+				# loaded
 				$self->{loaded} = 1;
+				
+				# it's ok to backup what we have
+				`cp $file $bk$f`;
+				
 			}
 			
 		}

@@ -43,6 +43,9 @@ sub new {
 		# shortcuts
 		'tmp' => $drib->{tmp},
 		
+		# db
+		'db' => new Drib::Db('crons',$drib->{var}),
+		
 		# commands
 		'commands' => [
 			{ 
@@ -63,6 +66,59 @@ sub new {
 
 }
 
+
+##
+## @brief parse the command line and execute proper sub
+##
+## @param $cmd the cammand given
+## @param $opts command line opts
+## @param @args list of arguments
+##
+sub run {
+
+	# get some stuff
+	my ($self, $cmd, $opts, @args) = @_;
+	
+	# figure out if they have one arg
+	if ( scalar @args > 0 )	 {
+	
+		# need edit or list
+		if ( $opts->{edit} == 0 && $opts->{list} == 0 ) {
+			return {
+				'code' => 400,
+				'message' => "usage: drib cron <package> -list -edit"
+			};
+		}
+		
+		# parse the package name
+		my $pkg = $self->{drib}->parsePackageName( $args[0] );
+		
+			# bad package
+			unless ( $self->{drib}->{packages}->get($pkg->{pid}) ) {
+				return {
+					'code' => 400,
+					'message' => "Package $args[0] is not installed."
+				}
+			}
+	
+		# what to do 
+		if ( $opts->{edit} ) {
+			return $self->edit($pkg->{pid});
+		}
+		else {
+			$self->list($pkg->{pid});
+		}
+	
+	}
+	
+	# bad
+	return {
+		'code' => 401,
+		'message' => "You must supply a package"
+	};
+	
+}	
+	
 ##
 ## @brief add crons to execute
 ##
@@ -70,8 +126,29 @@ sub new {
 ## @param $crons array of crons to add
 ##
 sub add {
-
 	
+	# stuff
+	my ($self, $pid, $cron) = @_;
+
+	# crons 
+	my @crons = ();
+
+	# loop me
+	foreach my $c ( @{$cron} ) {
+		push(@crons, $c->{cmd});
+	}	
+
+	# add to package list
+	$self->{db}->set($pid,\@crons);	
+
+	# rebuild
+	$self->_rebuild();
+
+	# do it
+	return {
+		'code' => 200,
+		'message' => "Crons Updated"
+	}
 
 }
 
@@ -83,6 +160,14 @@ sub add {
 ##
 sub remove {
 
+	# stuff
+	my ($self, $pid) = @_;
+
+	# unset
+	$self->{db}->unset($pid);
+
+	# rebuild
+	$self->_rebuild();	
 
 }
 
@@ -93,7 +178,43 @@ sub remove {
 ##
 sub edit {
 
+	# stuff
+	my ($self, $pid) = @_;
+	
+	# get their current crons
+	my $crons = $self->{db}->get($pid);
 
+	# save as tmp
+	my $tmp = $self->{tmp} . "/" . rand_str(10);
+
+	# loop through current and write to the file
+	open(f,'>'.$tmp);
+		
+		# loop and write to file
+		foreach my $c ( @$crons ) {
+			print f $c."\n";
+		}
+
+	# close the file
+	close(f);
+
+	# now open in vi for them
+	system("vi $tmp");
+	
+	# n 
+	my @new_crons = ();
+	
+	# crons
+	foreach $line ( split(/\n/,ws_trim(file_get($tmp))) ) {
+		push(@new_crons,{'cmd'=>$line});
+	}
+
+	# remve the tmp
+	`rm $tmp`;
+	
+	# add
+	return $self->add($pid, \@new_crons);
+	
 }
 
 ##
@@ -103,5 +224,56 @@ sub edit {
 ##
 sub list {
 
+	# stuff
+	my ($self, $pid) = @_;
+	
+	# get their current crons
+	my $crons = $self->{db}->get($pid);
+	
+	# loop and show
+	foreach my $cron ( @$crons ) {
+		msg($cron);
+	}
+	
+	exit;
+
+}
+
+
+##
+## @brief rebuild the crontab
+##
+sub _rebuild {
+
+	# self
+	my ($self) = @_;
+	
+	# get a crons
+	my $crons = $self->{db}->all();    	
+
+	# file
+	my $file = "";
+
+	# get each package and 
+	foreach my $pkg ( keys %{$crons} ) {
+		foreach $cron ( @{$crons->{$pkg}} ) {
+			$file .= $cron."\n";
+		}
+	}
+
+	# save as tmp
+	my $tmp = $self->{tmp} . "/" . rand_str(10);
+
+	# put into tmp
+	file_put($tmp,$file);
+
+	# blast away the cron file
+	`crontab -u root -r`;
+
+	# set our new one
+	`crontab -u root $tmp`;
+
+	# no more temo
+	`rm $tmp`;
 
 }

@@ -65,6 +65,53 @@ sub new {
 
 }
 
+##
+## @brief parse the command line and execute proper sub
+##
+## @param $cmd the cammand given
+## @param $opts command line opts
+## @param @args list of arguments
+##
+sub run {
+
+	# get some stuff
+	my ($self, $cmd, $opts, @args) = @_;
+
+	# we want the orig arv, because
+	# we need the alias 
+	my $ocmd = $self->{drib}->{argv}[0];
+	
+	# holders
+	my ($type, $name);
+	
+	# if $cmd != $ocmd it should be type
+	if ( $cmd ne $ocmd ) {
+		$type = $ocmd;
+		$name = $self->{drib}->{argv}[1];
+	}
+	else {
+		$type = $self->{drib}->{argv}[1];
+		$name = $self->{drib}->{argv}[2];
+	}
+
+	# no type or package, just end
+	unless ( $type && $name ) {
+		return {
+			'code' => 400,
+			'message' => "No command type or package given"
+		};
+	}
+
+	# try to get the package
+	my $pkg = $self->{drib}->parsePackageName($name);
+
+	# do it 
+	$self->exec($type, $pkg->{pid});
+
+    # stop
+    exit;
+
+}
 
 
 ##
@@ -79,12 +126,20 @@ sub exec {
 	my ($self, $type, $pkg) = @_;
 
 	#  if pkg is a hash we
-	unless ( ref $pkg eq 'SCALAR' ) {
+	unless ( ref $pkg eq 'HASH' ) {
 		$manifest = $self->{drib}->{packages}->get($pkg);
 	}
 	else {
 		$manifest = $pkg;
 	}
+
+		# no manifest
+		unless ( $manifest ) {
+			return {
+				'code' => 404,
+				'message' => "Could not find package manifest"
+			};
+		}
 
 	# pwd
 	my $pwd = getcwd();
@@ -99,7 +154,7 @@ sub exec {
         if ( exists $manifest->{commands}->{$type} ) {
             
             # loop through and execute
-            foreach my $c ( @{$manifest->{commands}->{$type}} ) {
+            foreach my $c ( @{$manifest->{commands}->{$type}} ) {                        
                 system($c);
             }
         
@@ -109,5 +164,6 @@ sub exec {
     
     # go back
     chdir($pwd);
+    
 
 }
