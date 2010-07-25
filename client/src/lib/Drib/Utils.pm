@@ -94,7 +94,6 @@ sub file_put {
 
 sub fail {
 	my $msg = shift;
-	print "[ \033[31mFailure\033[0m ]  ";	
 	print $msg ."\n";
 	exit;
 }
@@ -102,13 +101,6 @@ sub fail {
 sub msg {
 	my $msg = shift;
 	my $status = shift;	
-	
-		if ( $status != 0 && $status != 200 ) {
-			print "[ \033[31mFailure\033[0m ]  ";
-		}
-		elsif ( $status == 200 ) {
-			print "[ \032[31mSuccess\033[0m ]  ";
-		}
 	
 	print $msg ."\n";
 }

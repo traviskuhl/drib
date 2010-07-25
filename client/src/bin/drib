@@ -16,7 +16,6 @@ package Drib;
 # version
 our $VERSION = "1.0";
 
-
 # use packages
 use Getopt::Lucid qw( :all );
 use Data::Dumper;
@@ -29,13 +28,13 @@ use Crypt::CBC;
 use JSON;
 
 # lib
-use lib "../lib";
+use lib "/home/kuhlt/drib/code/client/src/lib";
 
 # drib packages
 use Drib::Utils;
 use Drib::External;
 use Drib::Db;
-use Drib::Host;
+use Drib::Remote;
 
 # make me a drib
 our $Drib = new Drib();
@@ -48,12 +47,13 @@ sub new {
 	# get 
 	my($ref) = @_;
 
-	# get myself
+	# define myself... i feel fat
 	my $self = {
 		'modules'	=> {},			# refs to modules
 		'commands'	=> {},			# list of modules and their options
 		'parsers'	=> {},			# list of available package file parsers
 		'packages' 	=> {},			# ref to packages db
+		'remote'	=> {},			# ref to remote handler
 		'tmp'		=> "",			# our tmp director
 		'var'		=> ""			# var folder
 	};
@@ -62,7 +62,7 @@ sub new {
 	bless($self);	
 	
 	# var direcotry
-	$self->{var} = File::Spec->rel2abs("../test/var/");
+	$self->{var} = "/home/kuhlt/drib/code/client/src/test/var/";
 	
 	# load our dbs
 	$self->{packages}   = new Drib::Db('packges',$self->{var});
@@ -72,6 +72,9 @@ sub new {
 	
 		# create our tmp director
 		mkdir($self->{tmp});	
+		
+	# new remote
+	$self->{remote} = new Drib::Remote($drib);		
 		
 	# load our modules
 	$self->loadModules();
@@ -103,6 +106,9 @@ sub run {
 	# get cmd
 	my $cmd = shift(@ARGV);	
 	
+	# save the cmd
+	$self->{cmd} = $cmd;
+	
 	# see the cmd exists
 	if ( exists $self->{commands}->{$cmd} ) {
 		
@@ -110,10 +116,10 @@ sub run {
 		my $c = $self->{commands}->{$cmd};
 		
 		# options
-		my $o = $opt = Getopt::Lucid->getopt( \@{$c->{options}} );	
+		my $o = $opt = Getopt::Lucid->getopt(\@{$c->{options}});	
 		
 		# run it
-		my $resp = $self->{modules}->{$c->{module}}->run($c->{name}, {$o->options}, @ARGV);
+		my $resp = $self->{modules}->{$c->{module}}->run($c->{name}, {$o->options}, \@ARGV);
 		
 		# print the message
 		msg($resp->{message},$resp->{code});

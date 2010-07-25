@@ -83,7 +83,10 @@ sub new {
 sub run {
 
 	# get some stuff
-	my ($self, $cmd, $opts, @args) = @_;
+	my ($self, $cmd, $opts) = @_;
+	
+	# args
+	my @args = splice(@{$self->{drib}->{argv}},1);	
 
 	# what cmd
 	if ( scalar(@args) >= 2 && ($cmd eq "set" || $cmd eq "unset") ) {
@@ -109,7 +112,7 @@ sub run {
 			foreach my $a ( @args ) {
 				
 				# get key and value
-				my ($key,$val) = split(/=/,$c,2);
+				my ($key,$val) = split(/=/,$a,2);
 			
 				# sett it
 				$settings->{$key} = $val;
@@ -118,10 +121,10 @@ sub run {
 			
 		# set or unset the settings
 		if ( $cmd eq "set" ) {
-			$self->set($pkg->{pid}, $settings);
+			return $self->set($pkg->{pid}, $settings);
 		}
 		else {
-			$self->unset($pkg->{pid}, $settings);
+			return $self->unset($pkg->{pid}, $settings);
 		}
 	
 	}
@@ -165,6 +168,11 @@ sub set {
 	
 	# rebuild setting files
 	$self->_rebuild_settings_file();
+	
+	return {
+		'code' => 200,
+		'message' => "Settings updated"
+	};
 
 }
 

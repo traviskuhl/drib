@@ -9,11 +9,10 @@
 # There is NO WARRANTY, to the extent permitted by law.
 #
 
-package drib::dist::remote;
+package Drib::Dist::Remote;
 
-use drib::utils;
+use Drib::Utils;
 use Data::Dumper;
-use Net::SFTP::Foreign;
 
 # version
 my $VERSION = "0.0.1";
@@ -21,109 +20,33 @@ my $VERSION = "0.0.1";
 sub new {
 
 	# get some
-	my ($ref,$config) = @_;
+	my ($ref, $drib) = @_;
 
 	# get myself
-	my $self = {};
+	my $self = {
+		
+		# some params we need
+		'host'		=> $drib->{modules}->{Config}->get("dist-remote-host"),
+		'port'		=> $drib->{modules}->{Config}->get("dist-remote-port") || 22,
+		'folder'	=> trim($drib->{modules}->{Config}->get("dist-remote-folder"))."/"
+			
+	};
 	
-	# get
-	$self->{isConnected} = 0;	
-	$self->{config} = $config;
+	# unless we're in confif
+	unless ( $drib->{cmd} == 'config' ) {
+		
+		# if no
+		unless ( $self->{host} && $self->{folder} ) {
+			fail("You need to define server & folder (port optional, defaults to 22):\n drib config dist-remote-host=<hostname>\n drib config dist-remote-port=<port>\n drib config dist-remote-folder=<folder>");
+		}
 	
-	# stuff
-	$self->{server} = $config->get("dist-remote-server");
-	$self->{port} = $config->get("dist-remote-port");
-	$self->{folder} = trim($config->get("dist-remote-folder"))."/";
-	
-	# if no
-	unless ( $self->{server} && $self->{port} && $self->{folder} ) {
-		fail("You need to define server, port & folder:\n drib config dist-remote-server=<server>\n drib config dist-remote-port=<port>\n drib config dist-remote-folder=<folder>");
+		# ssh
+		$self->{ssh} = $drib->{remote}->connect($self->{host}, $self->{port});
+		
 	}
-	
+		
 	# bless and return me
 	bless($self); return $self;
-
-}
-
-sub setPassword {
-	my $self = shift;
-	my $pw = shift;
-	$self->{pass} = $pw;
-}
-
-# connect to dist
-sub connect {
-
-	# vars
-	my $self = shift;
-	
-	# username
-	my $user = $ENV{'SUDO_USER'};	
-	
-	# already connected we can skip
-	if ( $self->{isConnected} == 1 ) {
-
-		# ssh 
-		$self->{ssh} = new Net::SFTP::Foreign($self->{server}, user=>$user, password=>$self->{pass}, port=>$self->{port}, autodisconnect=>0, timeout=>5);
-		
-		# done
-		return;
-
-	}
-	
-	# already have a password
-	if ( $self->{pass} ) {
-		
-		# try
-		$self->{ssh} = new Net::SFTP::Foreign($self->{server}, user=>$user, password=>$self->{pass}, port=>$self->{port}, autodisconnect=>0, timeout=>5);	
-	
-		# no error
-		unless ( $self->{ssh}->error ) {
-			
-			# set it 
-			$self->{isConnected} = 1;
-			$self->{pass} = $self->{pass};
-			
-			#done
-			return;
-			
-		}	
-	
-	}
-	
-	# connect
-	my $ssh = 0;
-	
-	# tries
-	my $max = 3;
-	my $tries = 0;
-	$self->{pass} = 0;
-
-	# max
-	while ( $tries < $max ) {
-		
-		# password
-		my $pword = ask("Password:",1);				
-		
-		# ssh 
-		$self->{ssh} = new Net::SFTP::Foreign($self->{server}, user=>$user, password=>$pword, port=>$self->{port}, autodisconnect=>0, timeout=>5);
-		
-		# worked
-		unless ( $self->{ssh}->error ) {
-			
-			# set it 
-			$self->{isConnected} = 1;
-			$self->{pass} = $pword;
-			
-			#done
-			return;
-			
-		}
-		else {
-			print $self->{ssh}->error;
-		}
-					
-	}	
 
 }
 
@@ -131,22 +54,15 @@ sub connect {
 sub check {
 
 	# check
-	my ($self,$project,$pkg,$ver) = @_;
-	
-	# connect    
-    $self->connect();	
+	my ($self, $project, $pkg, $ver) = @_;
 	
 	# try to stat the file
 	my $file = $self->{folder} . $project."/".$pkg."/".$pkg."-".$ver.".tar.gz";
 
-	# return 
-	my $r = 0;
-
-	if ( $self->{ssh}->stat($file) ) {
-		$r = 1;
-	}
+	# lets try status
+	my $resp = $self->{ssh}->exec("stat $file");
 	
-	$self->{ssh}->disconnect();
+	print Dumper($resp);
 
 	# what 
 	return $r;

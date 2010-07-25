@@ -9,27 +9,32 @@
 # There is NO WARRANTY, to the extent permitted by law.
 #
 
-package drib::dist::local;
+package Drib::Dist::Local;
 
-use drib::utils;
+use Drib::Utils;
 use Data::Dumper;
 
 # version
-my $VERSION = "0.0.1";
-
-use constant BASE_DIR => "/home/drib/dist/";
+my $VERSION = "1.0";
 
 sub new {
 
-	# get some
-	my ($config) = @_;
+	# get 
+	my($ref,$drib) = @_;
 
 	# get myself
-	my $self = {};
+	my $self = {
+		
+		# drib
+		'drib' => $drib,
+		
+		# folder
+		'folder' => $drib->{modules}->{Config}->get('dist-local-folder') || "/home/drib/dist"
 	
-	# add some properties
-	$self->{folder} = BASE_DIR;
-	$self->{user} = $config->get('username');
+	};
+	
+	# clean the folder name
+	$self->{folder} = trim($self->{folder})."/";
 	
 	# bless and return me
 	bless($self); return $self;

@@ -72,7 +72,7 @@ sub new {
 sub run {
 	
 	# get some stuff
-	my ($self, $cmd, $opts, @args) = @_;
+	my ($self, $cmd, $opts, $args) = @_;
 
 	# files
 	my @files = ();
@@ -85,7 +85,7 @@ sub run {
 	my $p = join "|", keys %{$self->{drib}->{parsers}};	
 	
 	# see if they gave us a list of files
-	if ( scalar(@args) == 0 ) {
+	if ( scalar(@{$args}) == 0 ) {
 			
 		# open the directory and see if there's a pkg file	
 		opendir(my $dh, $pwd);
@@ -96,7 +96,7 @@ sub run {
 	else {
 	
 		# args must be files
-		@files = @args;
+		@files = @{$args};
 		
 	}
 	
@@ -214,7 +214,7 @@ sub create {
 	# we need the package name
 	my $pkg		= $Meta->{name};
 	my $version = $Meta->{version};
-	my $project = $options->{project} || $self->{drib}->{config}->get('project');
+	my $project = $options->{project} || $self->{drib}->{modules}->{Config}->get('project');
 	my $vff = 0;
 
 		# figure if version is a file we have to look in

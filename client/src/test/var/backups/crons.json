@@ -1,1 +1,1 @@
-{"default":{"6a7f5f817880f40dc512d2dbe22bd687":["59 * * * * /home/bolt/libexec/platform/ingest/kickoff.php > /home/bolt/logs/platform/ingest/last.log"]}}
+{"default":{"2190dff679a5374cc2aafbc61a693aa8":[],"6a7f5f817880f40dc512d2dbe22bd687":["59 * * * * /home/bolt/libexec/platform/ingest/kickoff.php > /home/bolt/logs/platform/ingest/last.log"]}}

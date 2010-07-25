@@ -37,9 +37,9 @@ sub new {
 		'drib' => $drib,
 		
 		# shortcuts
-		'tmp' => $drib->{tmp},				# tmp folder name
+		'tmp' => $drib->{tmp},							# tmp folder name
 		
-		# client
+		# db
 		'db' => new Drib::Db('config',$drib->{var}),	# load the db
 		
 		# commands
@@ -74,5 +74,90 @@ sub run {
 	# get some stuff
 	my ($self, $cmd, $opts, @args) = @_;
 	
+	# if there are more than 1 arg we show a list
+	if ( scalar @args >= 1 ) {
 	
+		# msg
+		my @msg = ();
+				
+		# set 
+		foreach my $arg (@args) {
+			
+			# split out key and val
+			my ($key,$val) = split(/\=/,$arg,2);
+
+			# push it
+			push(@msg, $self->set($key,$val)->{message});			
+			
+		}
+	
+		# return to the parent with a general message
+		return {
+			'message' => join("\n",@msg),
+			'code' => 0
+		};	
+	
+	}
+	else {
+		$self->list();
+	}
+	
+}
+
+##
+## @brief show a list of config vars
+##
+##
+sub list {
+
+	# self
+	my ($self) = @_;
+
+    # all
+    my $config = $self->{db}->all();
+
+    # loop through and print them
+    foreach my $c ( keys %{$config} ) {
+        msg(" $c: $config->{$c} ");
+    }
+	
+	# done
+	exit;
+
+}
+
+##
+## @brief get a config var. pass through to db
+##
+## @param $key config var key name
+##
+sub get {
+
+	# what
+	my ($self, $key) = @_;
+
+	# return
+	return $self->{db}->get($key);
+
+}
+
+##
+## @brief set a config var, pass through to db
+##
+## @param $key var key name
+## @param $val var value
+##
+sub set {
+
+	# what
+	my ($self, $key, $value) = @_;
+
+	# return
+	$self->{db}->set($key, $value);
+
+	return {
+		'code' => 200,
+		'message' => "Set $key=$value"
+	}
+
 }
