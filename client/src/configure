@@ -1,0 +1,164 @@
+#!/usr/bin/perl
+#
+#  drib configure
+# =================================
+#  (c) Copyright Travis Kuhl 2009-10
+#  
+#
+# This is free software. You may redistribute copies of it under the terms of
+# the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
+# There is NO WARRANTY, to the extent permitted by law.
+#
+
+# depend
+my @depend = (
+	"File::Basename",
+	"File::Find",
+	"Digest::MD5",
+	"Crypt::CBC",
+	"JSON",
+	"HTTP::Request",
+	"Net::SSH::Expect",
+	"Net::SCP::Expect",
+);
+
+# get opts
+use Getopt::Long;
+use CPAN;
+
+# vars
+my $bin = "/usr/local/bin", 
+   $lib = "/usr/local/lib/Drib", 
+   $var = "/usr/local/var/drib", 
+   $tmp = "/tmp/drib";
+
+# opts
+my $opts =  GetOptions (
+				"bin=s" => \$bin,
+				"lib=s" => \$lib,
+				"var=s" => \$var,
+				"tmp=s" => \$tmp,
+			);
+
+# lib dir
+`mkdir -p $lib/Drib`;
+`cp -R lib/Drib/* $lib`;
+	
+# create our var 
+`mkdir -p $var`;
+
+# create our tmp dir
+`mkdir -p $tmp`;
+
+# move our bin
+`cp bin/drib $bin/`;
+
+# cpan
+_setup_cpan();
+
+# test the deps
+foreach my $mod ( @depend ) {
+	
+	# test
+	eval("use $mod");
+
+	# if no try to install
+	if ( $@ ) {
+		CPAN::Shell->notest('install', $mod);
+	}
+
+} 
+
+
+	
+# The Initial Developer of the Original Code is Everything Solved.
+# Portions created by Everything Solved are Copyright (C) 2006
+# Everything Solved. All Rights Reserved.
+sub _setup_cpan {
+
+	# config
+	require CPAN::Config; 
+
+	# cpan home
+	my $dir = $CPAN::Config->{cpan_home};	
+	
+		# need dir	
+	    if (!defined $dir || !-w $dir) {
+	        $dir = "$ENV{HOME}/.cpan";
+	        mkdir $dir;	
+		}	
+	
+	# set 
+	$CPAN::Config->{cpan_home} = $dir;
+	$CPAN::Config->{build_dir} = "$dir/build";
+	$CPAN::Config->{keep_source_where} = "$dir/source";
+	$CPAN::Config->{inhibit_startup_message} = 1;
+	$CPAN::Config->{prerequisites_policy} = 'follow';
+	$CPAN::Config->{histfile} = "$dir/histfile";
+	$CPAN::Config->{use_sqlite} = 0;
+	$CPAN::Config->{prefs_dir} = "$dir/prefs";	
+	
+	# default
+	my $default = {
+	    auto_commit => 0,
+	    build_cache => 0,
+	    build_requires_install_policy => 'yes',
+	    cache_metadata => 1,
+	    colorize_output => 1,
+	    colorize_print => 'bold',
+	    index_expire => 1,
+	    scan_cache => 'atstart',
+	    inhibit_startup_message => 1,
+	    bzip2 => bin_loc('bzip2'),
+	    curl => bin_loc('curl'),
+	    gzip => bin_loc('gzip'),
+	    links => bin_loc('links'),
+	    lynx => bin_loc('lynx'),
+	    make => bin_loc('make'),
+	    pager => bin_loc('less'),
+	    tar => bin_loc('tar'),
+	    unzip => bin_loc('unzip'),
+	    wget => bin_loc('wget'),
+	    urllist => [qw(
+	        http://cpan.pair.com/
+	        http://mirror.hiwaay.net/CPAN/
+	        ftp://ftp.dc.aleron.net/pub/CPAN/
+	        http://mirrors.kernel.org/cpan/
+	        http://mirrors2.kernel.org/cpan/)]
+	};
+	
+	# loop
+	foreach my $key ( keys %{$default} ) {
+		$CPAN::Config->{$key} = $default->{$key};
+	}
+
+    my @missing;
+    # In newer CPANs, this is in HandleConfig. In older CPANs, it's in
+    # Config.
+    if (eval { require CPAN::HandleConfig }) {
+        @missing = CPAN::HandleConfig->missing_config_data;
+    }
+    else {
+        @missing = CPAN::Config->missing_config_data;
+    }
+
+    foreach my $key (@missing) {
+        $CPAN::Config->{$key} = '';
+    }
+		
+}
+
+
+# locate bin files
+sub bin_loc {
+    my ($bin) = @_;
+    open(my $saveerr, ">&STDERR");
+    open(STDERR, '>/dev/null');
+    my $loc = `which $bin`;
+    close(STDERR);
+    open(STDERR, ">&", $saveerr);
+    my $exit_code = $? >> 8; # See the perlvar manpage.
+    return '' if $exit_code > 0;
+    chomp($loc);
+    return $loc;
+}
