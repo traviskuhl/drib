@@ -32,7 +32,7 @@ use Drib::Utils;
 sub new {
 
 	# get 
-	my($ref,$drib) = @_;
+	my($ref, $drib) = @_;
 	
 	# self
 	my $self = {
@@ -41,9 +41,8 @@ sub new {
 		'drib' => $drib,
 		
 		# shortcuts
-		'tmp' => $drib->{tmp},				# tmp folder name
-		'dist' => $drib->{dist},			# dist instance
-		'packages' => $drib->{packages},	# packages db
+		'tmp' => $drib->{tmp},					# tmp folder name
+		'packages' => $drib->{packages},		# packages db
 		
 		# commands
 		'commands' => [
@@ -97,13 +96,16 @@ sub new {
 sub run {
 
 	# get some stuff
-	my ($self, $cmd, $opts, @args) = @_;
+	my ($self, $cmd, $opts) = @_;
 
 	# is cmd list or something simlar
 	if ( $cmd eq "list" ) {
-		$self->list(@args);
+		$self->list(@{$self->{drib}->{args}});
 	}
 	else {
+	
+		# args
+		my @args = @{$self->{drib}->{args}};
 	
 		# nothing in args means we don't know what to do
 		if ( $#args == -1 ) {
@@ -173,6 +175,9 @@ sub install {
 	# manifest
 	my $manifest = 0;
 	my $local = 0;
+	
+	# dist
+	my $dist = $self->{drib}->{modules}->{Dist};
 
 	# if package has .tar.gz
 	# we don't need to go to dist
@@ -225,25 +230,25 @@ sub install {
     	    
     	# now we need to check with dist 
     	# to see if this package exists 
-    	my $exists = $self->{dist}->check($project, $pkg, $version);
+    	my $exists = $dist->check($project, $pkg, $version);
     
     	# if it exists we need to error
     	unless ( $exists ) {
     		return {
     			"code" => 404,
-    			"response" => "Package $project/$pkg-$version does not exist."
+    			"message" => "Package $project/$pkg-$version does not exist."
     		};
     	}
     
     	# ok so we now have it 
     	# so lets get the file
-    	$file = $self->{dist}->get($project, $pkg, $version);    
+    	$file = $dist->get($project, $pkg, $version);    
     
     	# unpack
-    	my $r  = $self->{drib}->unpackPackageFile($file);
+    	my $r = $self->{drib}->unpackPackageFile($file);
     	
         	# check the code
-        	if ( $r->code != 200 ) {
+        	if ( $r->{code} != 200 ) {
         		return $r;
         	}    		
     	
@@ -260,7 +265,7 @@ sub install {
                 if ( $installed->{meta}->{version} eq $manifest->{meta}->{version} && !$options{'same'} ) {
                     return {
                     	"code" => 409,
-                    	"response" => "$pkg-$installed->{meta}->{version} is already installed"
+                    	"message" => "$pkg-$installed->{meta}->{version} is already installed"
                     };
                 }
                 
@@ -269,7 +274,7 @@ sub install {
                 if ( versioncmp($manifest->{meta}->{version},$installed->{meta}->{version}) == -1 && !$options{'downgrade'} ) {
                     return {
                     	"code" => 409,
-                    	"response" => "$pkg-$exists is less than the installed version ($installed->{meta}->{version}).\nUse --downgrade to override."
+                    	"message" => "$pkg-$exists is less than the installed version ($installed->{meta}->{version}).\nUse --downgrade to override."
                     };
                 }
                 
@@ -281,7 +286,7 @@ sub install {
 	if ( $manifest == 0 ) {
 		return {
 			"code" => 500,
-			"response" => "Manifest is unknow. Try Again."
+			"message" => "Manifest is unknow. Try Again."
 		};
 	}
 
@@ -314,7 +319,7 @@ sub install {
 				if ( $ver != 0 && $ver != $i->{meta}->{version} ) {
 					return {
 						"code" => 409,
-						"response" => "Installed version of $i->{meta}->{name} ($i->{meta}->{version}) does not meet $manifest->{meta}->{name} version requirement ($min)"
+						"message" => "Installed version of $i->{meta}->{name} ($i->{meta}->{version}) does not meet $manifest->{meta}->{name} version requirement ($min)"
 					};
 				}			
 
@@ -322,7 +327,7 @@ sub install {
 				if ( $min != 0 && versioncmp($i->{meta}->{version},$min) == -1 ) {
 					return {
 						"code" => 409,
-						"response" => "Installed version of $i->{meta}->{name} ($i->{meta}->{version}) does not meet $manifest->{meta}->{name} minimun requirement ($min)"
+						"message" => "Installed version of $i->{meta}->{name} ($i->{meta}->{version}) does not meet $manifest->{meta}->{name} minimun requirement ($min)"
 					};
 				}
 
@@ -330,7 +335,7 @@ sub install {
 				if ( $max != 0 && versioncmp($max,$i->{meta}->{version}) == -1 ) {
 					return {
 						"code" => 409,
-						"response" => "Installed version of $i->{meta}->{name} ($i->{meta}->{version}) does not meet $manifest->{meta}->{name} maximum requirement ($max)"
+						"message" => "Installed version of $i->{meta}->{name} ($i->{meta}->{version}) does not meet $manifest->{meta}->{name} maximum requirement ($max)"
 					};
 				}				
 

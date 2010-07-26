@@ -25,28 +25,48 @@ sub new {
 	# get myself
 	my $self = {
 		
+		# drib
+		'drib' 		=> $drib,
+		
+		# folder
+		'folder' 	=> "",
+		
 		# some params we need
-		'host'		=> $drib->{modules}->{Config}->get("dist-remote-host"),
-		'port'		=> $drib->{modules}->{Config}->get("dist-remote-port") || 22,
-		'folder'	=> trim($drib->{modules}->{Config}->get("dist-remote-folder"))."/"
-			
+		'ssh'		=> 0,
+					
 	};
-	
-	# unless we're in confif
-	unless ( $drib->{cmd} == 'config' ) {
-		
-		# if no
-		unless ( $self->{host} && $self->{folder} ) {
-			fail("You need to define server & folder (port optional, defaults to 22):\n drib config dist-remote-host=<hostname>\n drib config dist-remote-port=<port>\n drib config dist-remote-folder=<folder>");
-		}
-	
-		# ssh
-		$self->{ssh} = $drib->{remote}->connect($self->{host}, $self->{port});
-		
-	}
+
 		
 	# bless and return me
 	bless($self); return $self;
+
+}
+
+sub connect {
+
+	my ($self) = @_;
+	
+	# have ssh
+	if ( $self->{ssh} != 0 ) {
+		return;
+	}
+	
+	# get info we need
+	my $host = $self->{drib}->{modules}->{Config}->get("dist-remote-host");
+	my $port = $self->{drib}->{modules}->{Config}->get("dist-remote-port") || 22;
+	my $folder = trim($self->{drib}->{modules}->{Config}->get("dist-remote-folder"))."/";
+	
+	# if no
+	unless ( $host && $folder ) {
+		fail("You need to define server & folder (port optional, defaults to 22):\n drib config dist-remote-host=<hostname>\n drib config dist-remote-port=<port>\n drib config dist-remote-folder=<folder>");
+	}
+
+	# set folder
+	$self->{folder} = $folder;
+	$self->{host} = $host;
+
+	# ssh
+	$self->{ssh} = $self->{drib}->{remote}->new($self->{drib}, $host, $port);
 
 }
 
@@ -56,22 +76,28 @@ sub check {
 	# check
 	my ($self, $project, $pkg, $ver) = @_;
 	
+	# connect
+	$self->connect();
+	
 	# try to stat the file
 	my $file = $self->{folder} . $project."/".$pkg."/".$pkg."-".$ver.".tar.gz";
 
 	# lets try status
 	my $resp = $self->{ssh}->exec("stat $file");
 	
-	print Dumper($resp);
-
-	# what 
-	return $r;
+	# what up
+	if ( $resp =~ 'No such file or directory' ) {
+		return 0;
+	}
+	else {
+		return 1;
+	}
 
 }
 
 sub get {
 
-	my ($self,$project,$pkg,$ver) = @_;
+	my ($self, $project, $pkg, $ver) = @_;
 	
 	# connect    
     $self->connect();	
@@ -79,11 +105,23 @@ sub get {
 	# try to stat the file
 	my $file = $self->{folder} . $project."/".$pkg."/".$pkg."-".$ver.".tar.gz";
 
-	# give back
-	my $tar = $self->{ssh}->get_content($file);
-		
-	$self->{ssh}->disconnect();	
+	# tmp file
+	my $tmp = $self->{drib}->{tmp} ."/" . rand_str(5);
 	
+	# try to get it 
+	$resp = $self->{ssh}->scp($self->{host}.":".$file,$tmp);
+	
+	# bad reso
+	if ( $resp == 0 ) {
+		return 0;
+	}
+	
+	# get tar
+	$tar = file_get($tmp);
+		
+	# rm tmp
+	`rm $tmp`;	
+		
 	# return
 	return $tar;	
 	
@@ -108,36 +146,31 @@ sub upload {
 	# package folder
 	my $folder = $self->{folder} . $project . "/" . $pkg;
 	
-		my $a = Net::SFTP::Foreign::Attributes->new();
-			$a->set_perm(0777);
-	
-		# does a folder exist 
-		unless ( $self->{ssh}->stat($folder) ) {
-			$self->{ssh}->mkpath($folder, $a);
-		}
-		
+		# make the folder
+		$self->{ssh}->exec("mkdir -p $folder");		
 			
 	# tmp
 	my $tmp = $self->{config}->get('tmpf') . "/" . rand_str(10);			
 	
 	# save it 
 	file_put($tmp,$tar);	
-			
-	# put the filder
-	$self->{ssh}->put($tmp, $folder . "/" . $pkg . "-" . $version . ".tar.gz", perm=>0777 );			
-				
+	
+	# chmod to the proper perm
+	`chmod 0664 $tmp`;
+	
+	# file
+	my $file = $folder . "/" . $pkg . "-" . $version . ".tar.gz";
+	
+		# try to get it 
+		$resp = $self->{ssh}->scp($tmp, $self->{host}.":".$file);
+							
 	# bracnh fiuel
 	$br = $folder . "/" . $pkg . "-" . $branch . ".tar.gz";				
-				
-	# remove branch				
-	$self->{ssh}->remove($br);
-				
-	# remove the current branch
-	$self->{ssh}->put($tmp, $br, perm=>0777 );
+								
+		# set in branch
+		$resp = $self->{ssh}->scp($tmp, $self->{host}.":".$br);
 					
 	`rm $tmp`;		
-	
-	$self->{ssh}->disconnect();	
 
 	# done
 	return 1;

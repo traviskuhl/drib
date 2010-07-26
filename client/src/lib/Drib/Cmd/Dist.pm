@@ -87,7 +87,10 @@ sub new {
 sub run {
 
 	# get some stuff
-	my ($self, $cmd, $opts, @args) = @_;
+	my ($self, $cmd, $opts) = @_;
+	
+	# args
+	my @args = @{$self->{drib}->args};
 
 	# no args?
 	if ( scalar @args == 0 ) {

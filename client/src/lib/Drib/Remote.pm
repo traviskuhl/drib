@@ -20,6 +20,7 @@ use JSON;
 use POSIX;
 use Data::Dumper;
 use Net::SSH::Expect;
+use Net::SCP::Expect;
 
 # drib
 use Drib::Utils;
@@ -27,7 +28,7 @@ use Drib::Utils;
 sub new {
 
 	# get some
-	my ($ref, $drib) = @_;
+	my ($ref, $drib, $host, $port) = @_;
 
 	# get myself
 	my $self = {
@@ -38,15 +39,20 @@ sub new {
 		# host and port
 		'user' => $ENV{'SUDO_USER'},
 		'pass' => "",
-	
+		'host' => $host,
+		'port' => $port,
+			
 		# connection
-		'ssh' => {}
+		'ssh' => {},
+		'scp' => {},
 			
 	};
-
 	
 	# bless and return me
 	bless($self); 	
+	
+	# connect
+	$self->connect();	
 	
 	# done
 	return $self;
@@ -57,24 +63,23 @@ sub new {
 sub connect {
 	
 	# host and port
-	my ($self, $host, $port) = @_;
-	
-		# already connected to host
-		if ( exists $self->{ssh}->{$host} ) {
-			return $self->{ssh}->{$host};
-		}
+	my ($self) = @_;
+
 	
 	# !pass
 	unless ( $self->{pass} ) {
 		$self->{pass} = ask("Password:",1);
 	}
+	
+	# pass
+	my $pass = $self->{pass};
 
 	# connect
 	my $ssh = Net::SSH::Expect->new (
 		host		=> $self->{host}, 
 		port		=> $self->{port},
 		password	=> $pass, 
-		user		=> $user, 
+		user		=> $self->{user}, 
 		raw_pty		=> 1
 	);
 
@@ -82,13 +87,16 @@ sub connect {
 	my $o = $ssh->login();
               
 		# bad password  
-        if ($o !~ /Welcome/) {
+        if ($o =~ /Permission denied/) {
             fail("Incorrect Password!");
         }
 
 	# save it 
-	$self->{ssh}->{$host} = $ssh;
+	$self->{ssh} = $ssh;
 
+	# connect to scp also
+	$self->{scp} = new Net::SCP::Expect(host=>$self->{host}, port=>$self->{port}, 'user'=>$self->{user}, password=>$pass, auto_yes=>1, no_check=>1);
+	
 	# return
 	return $ssh;
 
@@ -98,12 +106,25 @@ sub connect {
 sub exec {
 
 	# get oit 
-	my ($self, $host, $port, $cmd) = @_;
+	my ($self, $cmd) = @_;
 	
 	# connect
 	$self->connect($host, $port);
 
 	# run exex
-	return $self->{ssh}->{$host}->exec($cmd);
+	return $self->{ssh}->exec($cmd);
 
 }
+
+# scp
+sub scp {
+
+	# get 
+	my ($self, $local, $remote) = @_;
+
+	# do it 
+	return $self->{scp}->scp($local, $remote);
+
+}
+
+

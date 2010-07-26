@@ -1,1 +1,1 @@
-{"default":{"dist":"Drib::Dist::Local"}}
+{"default":{"dist-remote-port":"929","dist":"Drib::Dist::Remote","dist-remote-host":"dist.corp.dailyd.com","dist-remote-folder":"/home/dist"}}

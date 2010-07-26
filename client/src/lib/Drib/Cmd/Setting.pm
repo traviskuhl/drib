@@ -86,7 +86,7 @@ sub run {
 	my ($self, $cmd, $opts) = @_;
 	
 	# args
-	my @args = splice(@{$self->{drib}->{argv}},1);	
+	my @args = @{$self->{drib}->{args}};	
 
 	# what cmd
 	if ( scalar(@args) >= 2 && ($cmd eq "set" || $cmd eq "unset") ) {
@@ -121,17 +121,47 @@ sub run {
 			
 		# set or unset the settings
 		if ( $cmd eq "set" ) {
-			return $self->set($pkg->{pid}, $settings);
+			$resp = $self->set($pkg->{pid}, $settings);					
 		}
 		else {
-			return $self->unset($pkg->{pid}, $settings);
+			$resp = $self->unset($pkg->{pid}, $settings);
 		}
+	
+		# list
+		$self->list( $pkg->{pid} );			
+
+		# return
+		return $resp;
 	
 	}
 	else {
+	
+		# pid
+		my $pid = 0;
+	
+		# is there one cmd
+		if ( scalar @args == 1 ) {
+			
+			# name
+			my $name = shift @args;
+			
+			# try to get a pid
+			my $pkg = $self->{drib}->parsePackageName($name);
 		
-		# just list them
-		$self->list();
+				# no package
+				unless ( $self->{drib}->{packages}->get($pkg->{pid}) ) {
+					return {
+						'code' => 404,
+						'message' => "Could not find package $name"
+					};
+				}			
+			
+		}
+		
+		$self->list($pid);
+		
+		# exit out
+		exit();
 		
 	}
 
@@ -168,7 +198,7 @@ sub set {
 	
 	# rebuild setting files
 	$self->_rebuild_settings_file();
-	
+			
 	return {
 		'code' => 200,
 		'message' => "Settings updated"
@@ -266,17 +296,16 @@ sub files {
 sub list {
 	
 	# self
-	my ($self, $opts, $name) = @_;
+	my ($self, $pid) = @_;
 
     # get all settings
     my $settings = $self->{db}->all();
     
     # project 
     my $packages = 0;
-	my $pid = 0;
     
 	# first cmd
-	if ( $name ) {
+	if ( $pid ) {
 			
 		# prase
 		my $pkg = $self->{drib}->parsePackageName( $name );
@@ -332,9 +361,6 @@ sub list {
         }
         
     }
-
-	# exit out
-	exit();
 
 }
 

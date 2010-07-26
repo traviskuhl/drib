@@ -49,13 +49,13 @@ sub new {
 
 	# define myself... i feel fat
 	my $self = {
-		'modules'	=> {},			# refs to modules
-		'commands'	=> {},			# list of modules and their options
-		'parsers'	=> {},			# list of available package file parsers
-		'packages' 	=> {},			# ref to packages db
-		'remote'	=> {},			# ref to remote handler
-		'tmp'		=> "",			# our tmp director
-		'var'		=> ""			# var folder
+		'modules'	=> {},				# refs to modules
+		'commands'	=> {},				# list of modules and their options
+		'parsers'	=> {},				# list of available package file parsers
+		'packages' 	=> {},				# ref to packages db
+		'tmp'		=> "",				# our tmp director
+		'var'		=> "",				# var folder
+		'remote'	=> "Drib::Remote"	# name of remote handler
 	};
 	
 	# bless and return me
@@ -71,10 +71,7 @@ sub new {
 	$self->{tmp} = "/tmp/drib/".rand_str(6);
 	
 		# create our tmp director
-		mkdir($self->{tmp});	
-		
-	# new remote
-	$self->{remote} = new Drib::Remote($drib);		
+		mkdir($self->{tmp});		
 		
 	# load our modules
 	$self->loadModules();
@@ -106,6 +103,9 @@ sub run {
 	# get cmd
 	my $cmd = shift(@ARGV);	
 	
+	# args
+	$self->setArgs([@ARGV]);
+	
 	# save the cmd
 	$self->{cmd} = $cmd;
 	
@@ -119,7 +119,7 @@ sub run {
 		my $o = $opt = Getopt::Lucid->getopt(\@{$c->{options}});	
 		
 		# run it
-		my $resp = $self->{modules}->{$c->{module}}->run($c->{name}, {$o->options}, \@ARGV);
+		my $resp = $self->{modules}->{$c->{module}}->run($c->{name}, {$o->options});
 		
 		# print the message
 		msg($resp->{message},$resp->{code});
@@ -134,6 +134,28 @@ sub run {
 
 }
 
+##
+## @brief set the args property
+##
+sub setArgs {
+	
+	# self
+	my ($self, $args) = @_;
+	
+	# clean
+	my @clean = ();
+	
+	# loop
+	foreach my $arg ( @{$args} ) {	
+		unless ( substr($arg,0,1) eq '-' || length $arg == 1 ) {
+			push(@clean, $arg);
+		}
+	}
+
+	# set htem
+	$self->{args} = [@clean];
+
+}
 
 ##
 ## @brief help messaging

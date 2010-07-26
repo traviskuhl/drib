@@ -70,12 +70,11 @@ sub new {
 ##
 ## @param $cmd the cammand given
 ## @param $opts command line opts
-## @param @args list of arguments
 ##
 sub run {
 
 	# get some stuff
-	my ($self, $cmd, $opts, @args) = @_;
+	my ($self, $cmd, $opts) = @_;
 
 	# we want the orig arv, because
 	# we need the alias 

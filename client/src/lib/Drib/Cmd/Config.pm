@@ -72,22 +72,36 @@ sub new {
 sub run {
 
 	# get some stuff
-	my ($self, $cmd, $opts, @args) = @_;
+	my ($self, $cmd, $opts) = @_;
 	
 	# if there are more than 1 arg we show a list
-	if ( scalar @args >= 1 ) {
+	if ( scalar @{$self->{drib}->{args}} >= 1 ) {
 	
 		# msg
 		my @msg = ();
 				
 		# set 
-		foreach my $arg (@args) {
-			
-			# split out key and val
-			my ($key,$val) = split(/\=/,$arg,2);
+		foreach my $arg (@{$self->{drib}->{args}}) {
 
-			# push it
-			push(@msg, $self->set($key,$val)->{message});			
+			# unset
+			if ( $opts->{unset} ) {
+			
+				# just unset
+				push(@msg, $self->unset($arg)->{message});			
+				
+			}
+			else {
+			
+				# split out key and val
+				my ($key,$val) = split(/\=/,$arg,2);			
+			
+					# no key we should skup
+					if ( $key eq "" ) { next; }
+			
+				# push onto our array
+				push(@msg, $self->set($key,$val)->{message});			
+				
+			}
 			
 		}
 	
@@ -158,6 +172,27 @@ sub set {
 	return {
 		'code' => 200,
 		'message' => "Set $key=$value"
+	}
+
+}
+
+##
+## @brief unset a config var, pass through to db
+##
+## @param $key var key name
+## @param $val var value
+##
+sub unset {
+
+	# what
+	my ($self, $key, $value) = @_;
+
+	# return
+	$self->{db}->unset($key);
+
+	return {
+		'code' => 200,
+		'message' => "Unset $key"
 	}
 
 }

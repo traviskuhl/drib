@@ -72,7 +72,10 @@ sub new {
 sub run {
 	
 	# get some stuff
-	my ($self, $cmd, $opts, $args) = @_;
+	my ($self, $cmd, $opts) = @_;
+	
+	# arsgs
+	my @args = @{$self->{drib}->{args}};
 
 	# files
 	my @files = ();
@@ -85,7 +88,7 @@ sub run {
 	my $p = join "|", keys %{$self->{drib}->{parsers}};	
 	
 	# see if they gave us a list of files
-	if ( scalar(@{$args}) == 0 ) {
+	if ( scalar @args == 0 ) {
 			
 		# open the directory and see if there's a pkg file	
 		opendir(my $dh, $pwd);
@@ -96,7 +99,7 @@ sub run {
 	else {
 	
 		# args must be files
-		@files = @{$args};
+		@files = @{$self->{drib}->{args}};
 		
 	}
 	
