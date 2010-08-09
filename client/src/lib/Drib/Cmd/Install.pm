@@ -404,15 +404,17 @@ sub install {
 	opendir(my $dh, '.');
 	my @dirs = readdir($dh);
 	close($dh);
+	
 
 	# loop and move each of the 
 	# files to root. we force the 
 	# move. so if any existing folders 
 	foreach my $d ( @dirs ) {
-		if ( $d ne '.' && $d ne '..' && -d $d ) {			
+		if ( $d ne '.' && $d ne '..' && -d $d ) {	
 			`sudo cp -rf ./$d /`;
 		}
 	}
+	
 
     # make a pid
     my $pid = $self->{drib}->getPid($manifest->{project},$manifest->{meta}->{name});
@@ -495,8 +497,8 @@ sub remove {
         if ( -d $f ) {
             push @dirs, $f;
         }
-        else {
-            `sudo rm -f $f`;
+        else {        
+#            `sudo rm -f --preserve-root $f`;
         }
         
     }

@@ -19,6 +19,8 @@ our $VERSION = "1.0";
 # use packages
 use Getopt::Lucid qw( :all );
 use JSON;
+use Digest::MD5 qw(md5_hex);
+use POSIX;
 
 # lib
 use lib "/home/kuhlt/drib/code/client/src/lib";

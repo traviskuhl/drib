@@ -18,6 +18,7 @@ our $VERSION => "1.0";
 # packages we need
 use File::Basename;
 use File::Find;
+use File::Spec;
 use POSIX;
 use Digest::MD5 qw(md5_hex);
 use Crypt::CBC;
@@ -309,7 +310,7 @@ sub create {
 			}
 
 			# name		
-			my $d = $tdir . "/" . trim($dir->{dir},1);
+			my $d = $tdir . "/" . trim($dir->{dir},1)."/";
 
 			# mkdir 
 			`sudo mkdir -p $d`;
@@ -383,7 +384,7 @@ sub create {
 					if ( defined $file->{root} ) {
 					   $root = trim($file->{root});
 					}
-
+					
 					# each file
 					foreach my $item ( split(/\n/,$r) ) {
 
@@ -400,10 +401,11 @@ sub create {
                             $fpath =~ s/$root//;
                             $append = $fpath;
                         }
+                                      
 
                         # push ontop
 						push(@files,{
-                            'src'=>$item,
+                            'src'=> $item,
                             'user'=>$file->{user},
                             'group'=>$file->{group},
                             'mode'=>$file->{mode},
@@ -412,6 +414,7 @@ sub create {
                         });
 
 					}
+								
 
 				}
 				elsif ( defined $file->{'glob'} ) {
@@ -465,18 +468,13 @@ sub create {
 				my $n = basename($item->{src});
 
 				# dest
-				my $_d = "$d/$n";				
+				my $_d = "$d/$n";
 
 				# check for append
 				if ( defined $item->{append} && $item->{append} ne "" ) {
 
 				    # append
-				    $_d = "$d$item->{append}";
-
-				    # directory may not exist. we need to create it
-				    unless ( -d $_d ) {
-				        `sudo mkdir -p $_d`;
-				    }
+				    $_d = File::Spec->rel2abs(trim($d)."/".trim($item->{append},1)."/")."/";
 
 				    # append name
 				    $_d .= $n;
@@ -503,9 +501,16 @@ sub create {
                     
                 }               
                 
+                # dest dir
+                $_dir = dirname($_d);
+                	
+                	unless ( -d $_dir ) {
+                		`mkdir -p $_dir`;
+                	}
+                
                 # now see what type of build we have
                 if ( ( $type eq 'symlink' || $type eq 's' ) && $isSet != 1 ) {
-                    my $_s = getcwd() . "/" . $item->{src};				
+                    my $_s = getcwd() . "/" . $item->{src};			
                     symlink $_s, $_d;
                 }
                 else {	
@@ -537,6 +542,8 @@ sub create {
 		}
 	} # END @files	
 
+
+#	print Dumper(@listing); die;
 
 	# nice list of files
 	my @nicelist = map { s/$tdir//g; $_; } @listing;
