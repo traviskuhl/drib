@@ -203,7 +203,13 @@ sub load {
 				
 	}
 	else {
+	
+		# loaded
+		$self->{loaded} = 1;	
+	
+		# no content
 		$self->{content} = {};
+				
 	}
 
 }

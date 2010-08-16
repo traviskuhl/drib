@@ -13,6 +13,11 @@
 # our package
 package Drib;
 
+# var and tmp
+our $LIB = "/usr/local/lib/";
+our $VAR = "/usr/local/var/drib";
+our $TMP = "/tmp/drib";
+
 # version
 our $VERSION = "1.0";
 
@@ -21,9 +26,10 @@ use Getopt::Lucid qw( :all );
 use JSON;
 use Digest::MD5 qw(md5_hex);
 use POSIX;
+use File::Spec::Functions qw(rel2abs);
 
 # lib
-use lib "/home/kuhlt/drib/code/client/src/lib";
+BEGIN { use lib "/usr/local/lib/"; }
 
 # drib packages
 use Drib::Utils;
@@ -57,13 +63,13 @@ sub new {
 	bless($self);	
 	
 	# var direcotry
-	$self->{var} = "/home/kuhlt/drib/code/client/src/test/var/";
+	$self->{var} = rel2abs($VAR);
 	
 	# load our dbs
 	$self->{packages}   = new Drib::Db('packges',$self->{var});
 	
 	# tmp 
-	$self->{tmp} = "/tmp/drib/".rand_str(6);
+	$self->{tmp} = $TMP."/".rand_str(6);
 	
 		# create our tmp director
 		mkdir($self->{tmp});		

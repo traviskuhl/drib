@@ -28,9 +28,10 @@ use CPAN;
 
 # vars
 my $bin = "/usr/local/bin", 
-   $lib = "/usr/local/lib/Drib", 
+   $lib = "/usr/local/lib", 
    $var = "/usr/local/var/drib", 
-   $tmp = "/tmp/drib";
+   $tmp = "/tmp/drib",
+   $sym = 0;
 
 # opts
 my $opts =  GetOptions (
@@ -38,11 +39,12 @@ my $opts =  GetOptions (
 				"lib=s" => \$lib,
 				"var=s" => \$var,
 				"tmp=s" => \$tmp,
+				"symlink|s" => \$sym
 			);
 
 # lib dir
 `mkdir -p $lib/Drib`;
-`cp -R lib/Drib/* $lib`;
+`cp -R lib/Drib/* $lib/Drib`;
 	
 # create our var 
 `mkdir -p $var`;
@@ -51,7 +53,28 @@ my $opts =  GetOptions (
 `mkdir -p $tmp`;
 
 # move our bin
-`cp bin/drib $bin/`;
+`cp -frP bin/drib $bin/`;
+
+	# open bin and replace lib and var
+	open(F, $bin."/drib") || die "Could not open drib in bin\n";
+	my @file = <F>;
+	close(F);
+	
+		# rwite
+		my @write = ();
+	
+		# loop
+		foreach my $line (@file) {
+			$line =~ s/\.\.\/lib/$lib/i;
+			$line =~ s/\.\.\/var/$var/i;
+			$line =~ s/\/tmp\/drib/$tmp/i;			
+			push(@write, $line);
+		}
+
+	# print 
+	open(F, ">".$bin."/drib");
+	print F join("", @write);
+	close(F);
 
 # cpan
 _setup_cpan();
@@ -69,7 +92,16 @@ foreach my $mod ( @depend ) {
 
 } 
 
+# if symlink, install using our package file
+if ( $sym == 1 ) {
 
+	# run drib 
+	print `$bin/drib create ../pkg/drib.dpf -t s -c -i`;
+	
+}
+
+# done
+print "Setup Complete!\n";
 	
 # The Initial Developer of the Original Code is Everything Solved.
 # Portions created by Everything Solved are Copyright (C) 2006

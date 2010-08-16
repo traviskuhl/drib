@@ -2,8 +2,10 @@
 #
 #
 
+use lib "../src/lib";
+
 use POSIX;
-use drib::utils;
+use Drib::Utils;
 
 # files 
 my $base = "/tmp/".time();
@@ -27,7 +29,7 @@ if ( -e "./archive/$name" ) {
 my $file = file_get("$tmp/bin/drib");
 
 # replace it 
-$file =~ s/VERSION \= "X"/VERSION \= "$version"/gi;
+$file =~ s/VERSION \= "([0-9.]+)"/VERSION \= "$version"/gi;
 
 # put it back
 file_put("$tmp/bin/drib",$file);
@@ -35,7 +37,7 @@ file_put("$tmp/bin/drib",$file);
 # move others
 `cp -r ../src/lib $tmp`;
 `mkdir $tmp/var`;
-`cp ./Makefile.PL.tmpl $tmp/Makefile.PL`;
+#`cp ./Makefile.PL.tmpl $tmp/Makefile.PL`;
 
 # where 
 my $pwd = getcwd();
@@ -47,7 +49,7 @@ chdir($tmp."/..");
 `tar -cf $name ./drib`;
 
 # copy to pub
-`cp $name /home/drib/share/htdocs/pub/drib`;
+`cp $name /home/bolt/share/htdocs/drib/it/pub`;
 
 # now move it to builds
 `mv $name $pwd/archive`;
