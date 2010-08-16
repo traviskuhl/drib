@@ -1,6 +1,0 @@
-*.la
-*.lo
-*.o
-*.slo
-apache/mod_drib/.libs
-apache/mod_drib/.libs/*
