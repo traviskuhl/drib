@@ -648,7 +648,13 @@ sub create {
 		msg("Package Created: $name");
 		
 		# run the dist
-		return $self->{drib}->{modules}->{Dist}->dist(basename($package),$options); 
+		$resp = $self->{drib}->{modules}->{Dist}->dist(basename($package),$options); 
+		
+		# remove the old package
+		`sudo rm $name.tar.gz`;
+		
+		# resp
+		return $resp;
 
 
 	}

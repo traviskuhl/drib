@@ -20,6 +20,7 @@ use Digest::MD5 qw(md5_hex);
 use JSON;
 use Getopt::Lucid qw( :all );
 use Data::Dumper;
+use POSIX;
 
 # drib
 use Drib::Utils;
@@ -146,7 +147,7 @@ sub dist {
 	unless ( -e $file ) {
 		return {
 			"code" => 404,
-			"response" => "Could not find package $file to dist"	
+			"message" => "Could not find package $file to dist"	
 		};
 	}
 
@@ -164,7 +165,7 @@ sub dist {
 		unless ( $man ) {
 			return {
 				"code" => 400,
-				"response" => "Could not untar package file"	
+				"message" => "Could not untar package file"	
 			};			
 		}
 
@@ -172,13 +173,15 @@ sub dist {
 	my $name	= $man->{meta}->{name};
 	my $version = $man->{meta}->{version};
 
+#print Dumper($man->{changelog}); die;
+
 	if ( $self->check($project, $name, $version) ) {
 
 		# see if they're using a file:
 		if ( $man->{ov} && -e $man->{ov} && $man->{type} eq 'release' ) {
 
 			# ask them if they want to add to the file
-			my $r = ask("Version $version already exists for $pkg. Would you like to up the version and add a comment? [y]");
+			my $r = ask("Version $version already exists for $name. Would you like to up the version and add a comment? [y]");
 
 			# if we get y
 			if ( lc(substr($r,0,1)) eq "y" || $r eq "" ) {
@@ -234,7 +237,7 @@ sub dist {
 				chdir($tmp);
 
 				# remove the tar
-				`rm $pkg`;
+				`rm $file`;
 
 				# repackage the tmp dir 			
 				`sudo tar -czf $name.tar.gz .`;
@@ -249,7 +252,7 @@ sub dist {
 			else {			
 				return {
 					"code" => 403,
-					"response" => "Package '$pkg' version '$version' already exists"
+					"message" => "Package '$pkg' version '$version' already exists"
 				};
 			}				
 
@@ -257,7 +260,7 @@ sub dist {
 		else {			
 			return {
 				"code" => 403,
-				"response" => "Package '$pkg' version '$version' already exists"
+				"message" => "Package '$pkg' version '$version' already exists"
 			};
 		}		
 
@@ -275,17 +278,20 @@ sub dist {
     # name
     my $n = $man->{project}."/".$man->{meta}->{name}."-".$man->{meta}->{version};
     
+	# move back
+	chdir($pwd);    
+    
     # what happened
     if ( $r ) {
     	return {
     		'code' => 200,
-    		'response' => "Package $n pushed to dist"
+    		'message' => "Package $n pushed to dist"
     	};
     }
     else {
     	return {
     		'code' => 500,
-    		'response' => "Unknown error prevent dist"
+    		'message' => "Unknown error prevent dist"
     	};    
     }
 	
