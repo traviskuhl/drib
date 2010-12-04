@@ -13,6 +13,7 @@ package Drib::Dist::Remote;
 
 use Drib::Utils;
 use Data::Dumper;
+use POSIX;
 
 # version
 my $VERSION = "0.0.1";
@@ -150,7 +151,7 @@ sub upload {
 		$self->{ssh}->exec("mkdir -p $folder");		
 			
 	# tmp
-	my $tmp = $self->{config}->get('tmpf') . "/" . rand_str(10);			
+	my $tmp = $self->{drib}->{tmp} . "/" . rand_str(10);			
 	
 	# save it 
 	file_put($tmp,$tar);	
