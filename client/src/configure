@@ -20,11 +20,25 @@ my @depend = (
 	"HTTP::Request",
 	"Net::SSH::Expect",
 	"Net::SCP::Expect",
+	"Getopt::Lucid"
 );
 
 # get opts
 use Getopt::Long;
 use CPAN;
+
+	# we need them to be using the correct 
+	# cpan version
+	if ( $CPAN::VERSION < 1.9402 ) {
+		
+		# tell them what they new to do
+		print "Your CPAN version is out-of-date. To upgrade try: \n";
+		print "  perl -MCPAN -e 'install Bundle::CPAN'\n";
+		
+		# done
+		exit(0);
+		
+	}
 
 # vars
 my $bin = "/usr/local/bin", 
@@ -45,6 +59,9 @@ my $opts =  GetOptions (
 # lib dir
 `mkdir -p $lib/Drib`;
 `cp -R lib/Drib/* $lib/Drib`;
+	
+# bin
+`mkdir -p $bin`;	
 	
 # create our var 
 `mkdir -p $var`;
@@ -79,6 +96,10 @@ my $opts =  GetOptions (
 # cpan
 _setup_cpan();
 
+# checking
+print "\n".('-'x50)."\n";
+print "Checking CPAN...\n";
+
 # test the deps
 foreach my $mod ( @depend ) {
 	
@@ -91,6 +112,9 @@ foreach my $mod ( @depend ) {
 	}
 
 } 
+
+# done
+print "CPAN complete\n" . ('-'x50)."\n";
 
 # if symlink, install using our package file
 if ( $sym == 1 ) {

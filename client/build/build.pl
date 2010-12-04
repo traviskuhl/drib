@@ -37,7 +37,9 @@ file_put("$tmp/bin/drib",$file);
 # move others
 `cp -r ../src/lib $tmp`;
 `mkdir $tmp/var`;
-#`cp ./Makefile.PL.tmpl $tmp/Makefile.PL`;
+`cp ../src/configure $tmp`;
+`cp ../src/README $tmp`;
+`cp ../src/LICENSE $tmp`;
 
 # where 
 my $pwd = getcwd();

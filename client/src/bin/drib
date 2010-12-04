@@ -29,7 +29,11 @@ use POSIX;
 use File::Spec::Functions qw(rel2abs);
 
 # lib
-BEGIN { use lib "/usr/local/lib/"; }
+BEGIN { 
+	use lib "/usr/local/lib/"; 
+	$SIG{'__WARN__'} = sub { warn $ _[0] if $DOWARN } 
+}
+
 
 # drib packages
 use Drib::Utils;
