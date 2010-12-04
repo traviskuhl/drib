@@ -131,11 +131,11 @@ sub run {
 	    
 	    }	
 	
+		# msg
+		my @msg = ();	
+	
 		# install for each one of the args
-		foreach my $file (@args) {
-			
-			# msg
-			my @msg = ();
+		foreach my $file (@args) {		
 			
 			# try it
 			if ( $cmd eq "remove" ) {
@@ -149,15 +149,15 @@ sub run {
 			}
 			else {
 				push(@msg, $self->install($file, $opts)->{message});
-			}
-		
-			# return to the parent with a general message
-			return {
-				'message' => join("\n",@msg),
-				'code' => 0
-			};
+			}	
 		
 		}
+		
+		# return to the parent with a general message
+		return {
+			'message' => join("\n",@msg),
+			'code' => 0
+		};		
 		
 	}
 
