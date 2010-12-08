@@ -1,0 +1,88 @@
+{
+	
+	// name of this drib config
+	"name": "dailyd",
+	
+	// build groups
+	"build": {
+		"_config": {
+			"root": "~/",
+		},
+	
+		"fe": [
+			{
+				"pkg": "platform/fe",
+				"src": "platform/branches/groundwork/dailyd/pkg"
+			},
+			{
+				"pkg": "platform/dao",
+				"src": "platform/branches/groundwork/dao/pkg"
+			},
+			{
+				"pkg": "bolt/modules",
+				"src": "bolt/branches/groundwork/modules/pkg"
+			},
+			{
+				"pkg": "bolt/dao",
+				"src": "bolt/branches/groundwork/dao/pkg"
+			},			
+			{
+				"pkg": "bolt/assets",
+				"src": "bolt/branches/groundwork/assets/pkg",
+				"commands": {
+					"pre-create": [ "/usr/bin/warhol" ]
+				}
+			}		
+		]
+	},
+	
+	// target groups
+	"deploy": {
+		
+		"prod": {
+			"builds": [
+				{
+					"name": "fe",
+					"build": ["fe"],
+					"hosts": [
+						{"host": "fe1.dailyd.com" },
+						{"host": "fe2.dailyd.com" },
+					],
+					"process": [
+						{"cmd": "update_status off"},
+						{"cmd": "sleep 10"},
+						{"cmd": "build"},
+						{"cmd": "update_status on"}
+					],
+					"set": [
+						{ "name": "dev.mode", "value": "false" }
+					]
+				},
+				{
+					"name": "be"
+					"build": ["be"],
+					"hosts": [
+						{"host": "be1.dailyd.com"}
+					]
+					"process":[
+						{"cmd": "build"}
+					]
+				}
+			]
+		},
+		
+		"qa": {
+			"builds": [
+				{
+					"name": "qa",
+					"build": ["fe", "be"],
+					"hosts": [
+						{"host": "qa1.corp.dailyd.com" },
+					]
+				},
+			]
+		}
+	
+	}
+
+} // end

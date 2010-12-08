@@ -19,7 +19,7 @@ our $VAR = "/usr/local/var/drib";
 our $TMP = "/tmp/drib";
 
 # version
-our $VERSION = "1.0";
+our $VERSION = "0.1";
 
 # use packages
 use Getopt::Lucid qw( :all );
@@ -58,6 +58,7 @@ sub new {
 		'commands'	=> {},				# list of modules and their options
 		'parsers'	=> {},				# list of available package file parsers
 		'packages' 	=> {},				# ref to packages db
+		'
 		'tmp'		=> "",				# our tmp director
 		'var'		=> "",				# var folder
 		'remote'	=> "Drib::Remote"	# name of remote handler
@@ -70,6 +71,7 @@ sub new {
 	$self->{var} = rel2abs($VAR);
 	
 	# load our dbs
+	$self->{packages}   = new Drib::Db('packges',$self->{var});
 	$self->{packages}   = new Drib::Db('packges',$self->{var});
 	
 	# tmp 
@@ -215,6 +217,7 @@ sub loadModules {
 		'Setting'	=> "Drib::Cmd::Setting",
 		'Cron'		=> "Drib::Cmd::Cron",
 		'Command'	=> "Drib::Cmd::Command",
+		"Deply"		=> "Drib::Cmd::Deploy"
 	);
 	
 	
@@ -286,7 +289,7 @@ sub loadParsers {
 		'dpf'	=> "Drib::Parsers::Text",	# drib package file
 		'dppf'	=> "Drib::Parsers::Perl",	# drib perl package file
 		'djpf'	=> "Drib::Parsers::Json",	# drib json package file
-		'pkg'	=> "Drib::Parsers::Perl"		# for backwards compatability
+		'pkg'	=> "Drib::Parsers::Perl"	# for backwards compatability
 	};
 	
 }
