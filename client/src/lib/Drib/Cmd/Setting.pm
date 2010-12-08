@@ -147,7 +147,7 @@ sub run {
 			
 			# try to get a pid
 			my $pkg = $self->{drib}->parsePackageName($name);
-		
+					
 				# no package
 				unless ( $self->{drib}->{packages}->get($pkg->{pid}) ) {
 					return {
@@ -155,6 +155,9 @@ sub run {
 						'message' => "Could not find package $name"
 					};
 				}			
+			
+			# set the pid
+			$pid = $pkg->{pid};
 			
 		}
 		
