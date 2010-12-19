@@ -55,7 +55,7 @@
 						{"cmd": "update_status on"}
 					],
 					"set": [
-						{ "name": "dev.mode", "value": "false" }
+						{ "pkg": "platform/fe", "name": "dev.mode", "value": "false" }
 					]
 				},
 				{

@@ -58,7 +58,6 @@ sub new {
 		'commands'	=> {},				# list of modules and their options
 		'parsers'	=> {},				# list of available package file parsers
 		'packages' 	=> {},				# ref to packages db
-		'
 		'tmp'		=> "",				# our tmp director
 		'var'		=> "",				# var folder
 		'remote'	=> "Drib::Remote"	# name of remote handler
@@ -186,7 +185,7 @@ sub help {
 
 #msg	
 my $msg = qq|drib $VERSION
-Copyright (C) Travis Kuhl 2009-10\
+Copyright (c) Travis Kuhl 2009-10\
 
 This is free software.  You may redistribute copies of it under the terms of
 the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.

@@ -132,7 +132,7 @@ sub run {
 	    }	
 	
 		# msg
-		my @msg = ();	
+		my @msg = ();		
 	
 		# install for each one of the args
 		foreach my $file (@args) {		
@@ -262,16 +262,16 @@ sub install {
     		if ( $installed ) {
     		
                 # check if the same version is installed
-                if ( $installed->{meta}->{version} eq $manifest->{meta}->{version} && !$options{'same'} ) {
+                if ( $installed->{meta}->{version} eq $manifest->{meta}->{version} && !$opts->{'same'} ) {
                     return {
                     	"code" => 409,
-                    	"message" => "$pkg-$installed->{meta}->{version} is already installed"
+                    	"message" => "$pkg-$manifest->{meta}->{version} is already installed"
                     };
                 }
                 
                 # check if the give version is smaller than the 
                 # one installed
-                if ( versioncmp($manifest->{meta}->{version},$installed->{meta}->{version}) == -1 && !$options{'downgrade'} ) {
+                if ( versioncmp($manifest->{meta}->{version},$installed->{meta}->{version}) == -1 && !$opts->{'downgrade'} ) {
                     return {
                     	"code" => 409,
                     	"message" => "$pkg-$exists is less than the installed version ($installed->{meta}->{version}).\nUse --downgrade to override."
