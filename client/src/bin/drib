@@ -132,6 +132,11 @@ sub run {
 	# see the cmd exists
 	if ( exists $self->{commands}->{$cmd} ) {
 		
+		# not help need root
+		if ( $> != 0 ) {
+		    fail("You must run as root.");
+		}		
+		
 		# c 
 		my $c = $self->{commands}->{$cmd};
 		
