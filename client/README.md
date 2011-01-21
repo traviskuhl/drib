@@ -27,25 +27,27 @@ open source packaging and deployment manager
 6. Install
 	sudo make install
 
-# Commands
-* help                Display this message
-* install             Install a package from dist
-* config              Display or change a drib configuration
-* create              Create a package
-* dist				  Upload a file to dist
-* remove              Remove an installed package
-* set                 Update a package setting
-* unset               Remove a package setting
-* list                Show a list of installed packages
-* build				  Run a build manifest
-* deploy			  Deploy a manifest
+# Commands &amp; Options
+	help                Display this message
+	install             Install a package from dist
+	config              Display or change a drib configuration
+	create              Create a package
+	dist				Upload a file to dist
+	remove              Remove an installed package
+	set                 Update a package setting
+	unset               Remove a package setting
+	list                Show a list of installed packages
+	build				Run a build manifest
+	deploy				Deploy a manifest
 
-Options:
- -h, --help         Show this message
- -v, --version      Version of drib
+	Options:
+	 -h, --help         Show this message
+	 -v, --version      Version of drib
+
+For more information about a command, run `drib help <command>`
 
 # Contribute
-Feel free to fork and hack away. [How to submit your patches][http://dev.drib-pdm.org/contribute]
+Feel free to fork and hack away. [How to submit your patches](http://dev.drib-pdm.org/contribute)
 
 # LICENSE
 
