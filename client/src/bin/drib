@@ -13,26 +13,28 @@
 # our package
 package Drib;
 
-# var and tmp
-our $LIB = "/usr/local/lib/";
-our $VAR = "/usr/local/var/drib";
-our $TMP = "/tmp/drib";
-
-# version
-our $VERSION = "0.1";
-
-# use packages
+# get opts
+use File::Spec::Functions qw(rel2abs updir);
 use Getopt::Lucid qw( :all );
 use JSON;
 use Digest::MD5 qw(md5_hex);
 use POSIX;
-use File::Spec::Functions qw(rel2abs);
+use Data::Dumper;
+use FindBin;
+
+# version
+our $VERSION = "0.1";
 
 # lib
 BEGIN { 
-	use lib "/usr/local/lib/"; 
+	use FindBin qw($Bin);
+	use lib "$Bin/../lib";
 	$SIG{'__WARN__'} = sub { warn $ _[0] if $DOWARN } 
 }
+
+# tmp and var
+our $TMP = "/tmp/drib";
+our $VAR = "/var/drib";
 
 
 # drib packages
@@ -54,36 +56,36 @@ sub new {
 
 	# define myself... i feel fat
 	my $self = {
-		'modules'	=> {},				# refs to modules
-		'commands'	=> {},				# list of modules and their options
-		'parsers'	=> {},				# list of available package file parsers
-		'packages' 	=> {},				# ref to packages db
-		'tmp'		=> "",				# our tmp director
-		'var'		=> "",				# var folder
-		'remote'	=> "Drib::Remote"	# name of remote handler
+		'modules'		=> {},									# refs to modules
+		'commands'		=> {},									# list of modules and their options
+		'parsers'		=> {},									# list of available package file parsers
+		'packages' 		=> {},									# ref to packages db
+		'tmp'			=> "",									# our tmp director
+		'var'			=> "",									# var folder
+		'remote'		=> "Drib::Remote",						# name of remote handler
+		'download-src'	=> "http://drib-pdm.org/download/%s"	# where to get the current src
 	};
 	
 	# bless and return me
-	bless($self);	
-	
+	bless($self);		
+				
 	# var direcotry
 	$self->{var} = rel2abs($VAR);
 	
 	# load our dbs
-	$self->{packages}   = new Drib::Db('packges',$self->{var});
 	$self->{packages}   = new Drib::Db('packges',$self->{var});
 	
 	# tmp 
 	$self->{tmp} = $TMP."/".rand_str(6);
 	
 		# create our tmp director
-		mkdir($self->{tmp});		
-		
+		mkdir($self->{tmp});			
+	
 	# load our modules
 	$self->loadModules();
 	
 	# load our paresers 
-	$self->loadParsers();
+	$self->loadParsers();			
 	
 	# exec
 	$self->run();
@@ -115,16 +117,16 @@ sub DESTROY {
 sub run {
 
 	# who am i
-	my $self = shift;
-	
-	# save a copy of the argv before we change it
-	$self->{argv} = [@ARGV];
-	
-	# get cmd
-	my $cmd = shift(@ARGV);	
+	my $self = shift;		
 	
 	# args
-	$self->setArgs([@ARGV]);
+	my @_argv = (@ARGV);
+	
+	# get cmd
+	my $cmd = shift @_argv;	
+	
+	# args
+	$self->setArgs([@_argv]);
 	
 	# save the cmd
 	$self->{cmd} = $cmd;
@@ -135,7 +137,7 @@ sub run {
 		# not help need root
 		if ( $> != 0 ) {
 		    fail("You must run as root.");
-		}		
+		}
 		
 		# c 
 		my $c = $self->{commands}->{$cmd};
@@ -152,8 +154,36 @@ sub run {
 	}
 	else {
 
-		# help
-		$self->help();
+		my @spec = (
+			Switch("version|v"),
+			Switch("check-install"),
+			Param("bin")
+		);
+
+		# options
+		my $opts = Getopt::Lucid->getopt(\@spec);
+
+		# version 
+		if ( $opts->get_version ) {
+			print "drib $VERSION\n"; exit(1);
+		}
+		
+		# check install stuff
+		elsif ( $opts->get_check_install ) {
+
+			if ( -e $TMP && -e $VAR  ) {
+				print "No Errors. Good to install!\n"; exit(1);
+			}
+			else {			
+				print "ERROR! Missing a folder we need.\n"; exit(1);			
+			}
+			
+		}
+		
+		# show help
+		else {		
+			$self->help();
+		}
 	
 	}
 
@@ -244,7 +274,7 @@ sub loadModules {
 			my @alias = @{$cmd->{alias}};
 			
 			# push name to aliast
-			push(@alias,$cmd->{name});
+			push(@alias, $cmd->{name});
 			
 			# set it 
 			foreach my $a ( @alias ) {										
@@ -308,13 +338,30 @@ sub loadParsers {
 sub parsePackageFile {
 	
 	# get self and package
-	my ($self, $file_name, $file) = @_;
+	my ($self, $file_name, $file, $config) = @_;
 	
 	# parser
 	my @parts = split(/\./,$file_name);
 
 	# get the exension
 	my $ext = pop(@parts);
+	
+	# conifgs
+	my $drib_config = $self->{modules}->{Config}->all();
+	
+	# add our global config
+	foreach my $key ( keys %{$drib_config} ) {
+	
+		# the name
+		my $name = "drib.$key";
+		
+		# clean it
+		$name =~ s/[^a-z\.]+/\./gi;
+	
+		# reset in config
+		$config->{$name} = $drib_config->{$key};
+		
+	}
 
 	# does this exist in the parsers array
 	if ( exists $self->{parsers}->{$ext} ) {
@@ -330,7 +377,7 @@ sub parsePackageFile {
 		require $pf.".pm";
 		
 		# parse
-		return $parse->parse( $file );
+		return $parse->parse($file, $config);
 		
 	}
 	else {

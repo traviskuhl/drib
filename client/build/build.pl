@@ -32,7 +32,7 @@ my $file = file_get("$tmp/bin/drib");
 $file =~ s/VERSION \= "([0-9.]+)"/VERSION \= "$version"/gi;
 
 # put it back
-file_put("$tmp/bin/drib",$file);
+file_put("$tmp/bin/drib", $file);
 
 # move others
 `cp -r ../src/lib $tmp`;
@@ -40,6 +40,7 @@ file_put("$tmp/bin/drib",$file);
 `cp ../src/configure $tmp`;
 `cp ../src/README $tmp`;
 `cp ../src/LICENSE $tmp`;
+`cp -r ../pkg $tmp`;
 
 # where 
 my $pwd = getcwd();

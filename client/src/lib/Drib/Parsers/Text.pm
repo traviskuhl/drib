@@ -28,7 +28,7 @@ our $EXENSION = "dpf";
 sub parse {
 
 	# file to parse
-	my ($self,$tmp) = @_;
+	my ($self, $tmp, $replace) = @_;
 	
 	# open the tfile
 	my $file = file_get($tmp);
@@ -38,8 +38,19 @@ sub parse {
 	$file =~ s/( )+/ /g;
 	$file =~ s/\n\n/\n/g;	
 	
+	# and our replacement vars
+	foreach my $key ( keys %{$replace}  ) {
+		
+		# get the value
+		my $val = $replace->{$key};
+		
+		# repalce
+		$file =~ s/\$\($key\)/$val/g;
+		
+	}	
+	
 	# first pass at parsing
-	my $o = _parse($file,1);
+	my $o = _parse($file);
 
 	# replace vars
 	foreach my $key ( keys %{$o->{vars}}  ) {
@@ -48,8 +59,12 @@ sub parse {
 		
 		# repalce
 		$file =~ s/\$\($key\)/$val/g;
-	
+		
 	}
+
+	# replace defaults
+	$file = _replaceDefaults($file, $replace);
+	$file = _replaceDefaults($file, $o->{vars});
 
 	# reparse and return
 	return _parse($file);
@@ -273,5 +288,29 @@ sub _parse {
 	};
 
 }
+
+sub _replaceDefaults {
+
+	my ($file, $replace) = @_;
+
+	# find some matches
+	my @matches = ( $file =~ /\$\(([a-z\.]+)\|([^\)]+)\)/ig );
+	
+	# loop and replace
+	for (my $i = 0; $i < $#matches; $i++ ) {	
+		my $key = $matches[$i];
+		my $val = $matches[++$i];
+		if ( exists $replace->{$key} ) {
+			$file =~ s/\$\($key\|$val\)/$replace->{$key}/i;		
+		}
+		else {
+			$file =~ s/\$\($key\|$val\)/$val/i;
+		}
+	}
+	
+	return $file;
+
+}
+
 
 return 1;

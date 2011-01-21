@@ -20,7 +20,6 @@ use File::Basename;
 use File::Find;
 use POSIX;
 use Digest::MD5 qw(md5_hex);
-use Crypt::CBC;
 use JSON;
 use Getopt::Lucid qw( :all );
 use Data::Dumper;
@@ -437,8 +436,14 @@ sub _rebuild_settings_file {
             # loop and show
             foreach my $key ( keys %{$s} ) {
                 
+                # key
+                $keyn = $key;
+                
+                # replace any .
+                $keyn =~ s/\./\_/g;
+                
 				# set it 
-				$txt .= $packages->{$pid}->{project}."_".$packages->{$pid}->{meta}->{name}."__".$key."|".$s->{$key}."\n";
+				$txt .= $packages->{$pid}->{project}."_".$packages->{$pid}->{meta}->{name}."__".$keyn."|".$s->{$key}."\n";
                 
             }
 
@@ -447,6 +452,6 @@ sub _rebuild_settings_file {
     }	
 
 	# save it
-	file_put("/usr/var/drib/settings.txt",$txt);
+	file_put($VAR."/settings.txt",$txt);
 
 }

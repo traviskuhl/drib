@@ -39,8 +39,9 @@ sub new {
 		# shortcuts
 		'tmp' => $drib->{tmp},							# tmp folder name
 		
-		# db
-		'db' => new Drib::Db('config',$drib->{var}),	# load the db
+		# dbs
+		'db' => new Drib::Db('config',$drib->{var}),		# load the db
+		'mdb' => new Drib::Db('manifests',$drib->{var}),	# load the manifest db
 		
 		# commands
 		'commands' => [
@@ -51,6 +52,31 @@ sub new {
 				'options' => [
 					Switch('unset|u')
 				]
+			},
+			{
+				'name' => 'ls-manifest',
+				'help' => '',
+				'alias' => ['lsm',"ls-manifests"],
+				'options' => []
+			
+			},
+			{
+				'name' => 'add-manifest',
+				'help' => '',
+				'alias' => ['am'],
+				'options' => []
+			},
+			{
+				'name' => 'rm-manifest',
+				'help' => '',
+				'alias' => [],
+				'options' => []
+			},
+			{
+				'name' => 'update-manifest',
+				'help' => '',
+				'alias' => ['up-manifest'],
+				'options' => []
 			}
 		]
 		
@@ -75,7 +101,49 @@ sub run {
 	my ($self, $cmd, $opts) = @_;
 	
 	# if there are more than 1 arg we show a list
-	if ( scalar @{$self->{drib}->{args}} >= 1 ) {
+	if ( $cmd eq 'add-manifest' ) {
+	
+		# add a manifest
+		return $self->addManifest( shift(@{$self->{drib}->{args}}) );
+	
+	}
+
+	elsif ( $cmd eq 'update-manifest' ) {
+	
+		# add a manifest
+		return $self->addManifest( shift(@{$self->{drib}->{args}}), 1);
+	
+	}
+
+	elsif ( $cmd eq 'ls-manifest' ) {
+		
+		# all
+		my %all = %{$self->{mdb}->all()};
+		
+		# add a manifest
+		foreach my $item ( keys %all ) {
+			if ( $all{$item} ) {
+				msg(" $item");			
+			}
+		}
+	
+		exit();
+	
+	}
+
+	elsif ( $cmd eq 'rm-manifest' ) {
+	
+		# remove it 
+		$self->{mdb}->unset( shift @{$self->{drib}->{args}} );
+	
+		return {
+			"message" => "Manifest removed",
+			"code" => 200
+		}
+	
+	}	
+	
+	elsif ( scalar @{$self->{drib}->{args}} >= 1 ) {
 	
 		# msg
 		my @msg = ();
@@ -177,6 +245,22 @@ sub set {
 }
 
 ##
+## @brief get all config vars, pass through to db
+##
+## @param $key var key name
+## @param $val var value
+##
+sub all {
+
+	# what
+	my ($self) = @_;
+
+	# return
+	return $self->{db}->all();
+
+}
+
+##
 ## @brief unset a config var, pass through to db
 ##
 ## @param $key var key name
@@ -193,6 +277,47 @@ sub unset {
 	return {
 		'code' => 200,
 		'message' => "Unset $key"
+	}
+
+}
+
+##
+## @brief add a manifest to the build and depoy list
+##
+## @param $manifest manifest file
+##
+sub addManifest {
+
+	# get stuff
+	my ($self, $manifest, $force) = @_;
+	
+	# lets make sure it exists
+	unless ( -e $manifest ) {
+		return {
+			"code" => 404,
+			"message" => "manifest does not exist"
+		};
+	}
+
+	# open and parse it 
+	my $m = from_json( file_get($manifest) );
+
+	# make sure a manifest by this name doesn't 
+	# already exist
+	if ( $self->{mdb}->get($m->{name}) && $force != 1 ) {
+		return {
+			"message" => "Manifest $m->{name} already exists",
+			"code" => 400
+		};
+	}
+	
+	# add it 
+	$self->{mdb}->set($m->{name}, $m);
+
+	# done
+	return {
+		"message" => "Manifest Added",
+		"code" => 200
 	}
 
 }

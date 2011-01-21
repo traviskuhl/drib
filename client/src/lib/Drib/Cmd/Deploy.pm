@@ -23,7 +23,6 @@ use File::Basename;
 use File::Find;
 use POSIX;
 use Digest::MD5 qw(md5_hex);
-use Crypt::CBC;
 use JSON;
 use Getopt::Lucid qw( :all );
 use Data::Dumper;

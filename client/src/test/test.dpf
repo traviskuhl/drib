@@ -2,7 +2,9 @@
 # internal vars
 src = ./
 dest = /home/bolt/share/htdocs/test
-
+remote = $(drib.dist.remote.host)
+none=$(x|v)
+n=$(xx|vv)
 
 # meta data
 meta PROJECT = drib

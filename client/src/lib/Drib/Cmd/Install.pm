@@ -20,10 +20,11 @@ use File::Basename;
 use File::Find;
 use POSIX;
 use Digest::MD5 qw(md5_hex);
-use Crypt::CBC;
+#use Crypt::CBC;
 use JSON;
 use Getopt::Lucid qw( :all );
 use Data::Dumper;
+use LWP::Simple;
 
 # drib
 use Drib::Utils;
@@ -57,7 +58,7 @@ sub new {
 					Param('branch|b'),
 					Switch('same|s'),
 					Switch('downgrade|d'),
-					Switch('depend|dep'),
+					Switch('depend|dep')
 				]
 			},
 			{
@@ -76,6 +77,16 @@ sub new {
 				'alias' => ['ls'],
 				'options' => []			
 			},
+			{
+				'name' => 'self-update',
+				'help' => '',
+				'alias' => [],
+				'options' => [
+					Param('src|s'),
+					Param('version|v'),
+					Param('branch|b'),				
+				]
+			}
 		]
 		
 	};
@@ -102,6 +113,19 @@ sub run {
 	if ( $cmd eq "list" ) {
 		$self->list(@{$self->{drib}->{args}});
 	}
+	
+	# self update
+	elsif ( $cmd eq 'self-update' ) {
+	
+		# return to the parent with a general message
+		return {
+			'message' => $self->selfUpdate($opts)->{message},
+			'code' => 0
+		};			
+	
+	}
+	
+	# install or remove
 	else {
 	
 		# args
@@ -187,7 +211,7 @@ sub install {
         unless ( -e "./$file" ) {
             return {
             	"code" => 404,
-            	"response" => "Package file $file does not exists"
+            	"message" => "Package file $file does not exists"
             };
         }
      
@@ -417,7 +441,7 @@ sub install {
 	
 
     # make a pid
-    my $pid = $self->{drib}->getPid($manifest->{project},$manifest->{meta}->{name});
+    my $pid = $self->{drib}->getPid($manifest->{project}, $manifest->{meta}->{name});
     
     # don't need raw or changelog
     $manifest->{raw} = "";
@@ -541,7 +565,6 @@ sub list {
 	# args
 	my ($self, @args) = @_;
 
-
     # project
     my $project = shift @args || 'all'; 
         
@@ -616,4 +639,53 @@ sub list {
 	# exit out
 	exit;
 
+}
+
+
+##
+## @brief update the drib package
+##
+## @param $args list of command args
+##
+sub selfUpdate {
+
+	# args
+	my ($self, $opts) = @_;
+	
+	# set it 
+	my $branch = $opts->{branch} || 'current';
+	my $version = $opts->{version} || $branch;
+	my $src = $opts->{src} || $self->{drib}->{download-src};
+	my $file;
+	
+	# we want to always clean
+	$opts->{clean} = 1;
+
+	# if src == 'dist' we should try to 
+	# instal from the dist handel
+	if ( $src eq "dist" ) {
+		
+		# set it 
+		$file = "drib/drib-$version";
+	
+	}
+	else {
+		
+		# make our url
+		my $url = sprintf($src, $branch);
+		
+		# get our package
+		my $pkg = get($url);
+		
+		# file
+		$file = $self->{drib}->{tmp} . rand_str();
+		
+		# save it to tmp
+		file_put($file, $pkg);
+		
+	}
+	
+	# now install
+	return $self->install($file, $opts);
+	
 }

@@ -21,10 +21,10 @@ use File::Find;
 use File::Spec;
 use POSIX;
 use Digest::MD5 qw(md5_hex);
-use Crypt::CBC;
 use JSON;
 use Getopt::Lucid qw( :all );
 use Data::Dumper;
+#use Crypt::CBC;
 
 # drib
 use Drib::Utils;
@@ -55,7 +55,8 @@ sub new {
 					Switch('install|i'),
 					Switch('dist|d'),
 					Switch('cleanup|c'),
-					Param('type|t')
+					Param('type|t'),
+					Keypair('var|v')
 				]
 			}
 		]
@@ -162,12 +163,13 @@ sub run {
 sub create {
 
 	# file
-	my ($self, $file, $options) = @_;
+	my ($self, $file, $options) = @_;	
 
 	# optns
 	my $dist		= $options->{dist};
 	my $type		= $options->{type} || 'release';
 	my $install 	= $options->{install} || 0;
+	my $vars		= $options->{var} || {};
 
 	# where are we now
 	my $pwd = getcwd();    		
@@ -176,7 +178,7 @@ sub create {
     my ($fname,$fpath) = fileparse($file);	
 
     # move into fpath
-    chdir $fpath;
+    chdir $fpath; 
 
 	# open the manifest
 	my $man = file_get($fname);
@@ -194,7 +196,7 @@ sub create {
 	file_put($tmp,$man);
 
 	# parse me 
-	my $p = $self->{drib}->parsePackageFile($file, $tmp);
+	my $p = $self->{drib}->parsePackageFile($file, $tmp, $vars);
 	
 		# if no
 		if ( $p == 0 ) {
@@ -664,7 +666,13 @@ sub create {
 		msg("Package Created: $name");
 
 		# run the install
-		return $self->{drib}->{modules}->{Install}->install(basename($package),$options);
+		my $resp =  $self->{drib}->{modules}->{Install}->install(basename($package),$options);
+		
+		# move back
+		chdir $pwd;
+		
+		# tell me about ot
+		return $resp;
 		
 	}
 	else {

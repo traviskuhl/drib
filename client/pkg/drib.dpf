@@ -1,10 +1,10 @@
 # drib.dpf -- 2010-08-16		
 		
 # internal variables
-src = ../src
-bin = /usr/local/bin
-lib = /usr/local/lib
-var = /usr/local/var/drib
+src = $(src|../src)
+bin = $(bin|/usr/local/bin)
+lib = $(lib|/usr/local/lib)
+var = /var/drib
 tmp = /tmp/drib
 
 # meta data
