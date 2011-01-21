@@ -11,21 +11,21 @@ open source packaging and deployment manager
 
 # Install 
 1. Download the latest stable build
-	wget http://drib-pdm.org/download/stable
+	`wget http://drib-pdm.org/download/stable`
 2. untar
-	tar -xf drib-0.6.21.tar
+	`tar -xf drib-0.6.21.tar`
 
 3. Move into the drib directory
-	cd drib/
+	`cd drib/`
 
 4. Configure the environment
-	sudo ./configure
+	`./configure`
 
 5. Make
-	sudo make
+	`make`
 
 6. Install
-	sudo make install
+	`make install`
 
 # Commands &amp; Options
 	help                Display this message
@@ -48,6 +48,11 @@ For more information about a command, run `drib help <command>`
 
 # Contribute
 Feel free to fork and hack away. [How to submit your patches](http://dev.drib-pdm.org/contribute)
+
+# Get Help
+* IRC: [irc://irc.oftc.net/#dribpdm](irc://irc.oftc.net/#dribpdm)
+* Mailing List: [http://groups.google.com/group/drib-pdm](http://groups.google.com/group/drib-pdm)
+* Bug: [https://github.com/traviskuhl/drib/issues](https://github.com/traviskuhl/drib/issues)
 
 # LICENSE
 
