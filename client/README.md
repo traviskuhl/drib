@@ -1,144 +1,60 @@
-usage: drib [options] command [sub-command] [command-options]
+# drib
+open source packaging and deployment manager
 
-List of Commands:
- help                Display this message
- self-install        Install the downloaded version of drib
- install             Install a package from dist
- config              Display or change a drib configuration
- create              Create a package
- remove              Remove an installed package
- set                 Update a package setting
- unset               Remove a package setting
- list                Show a list of installed packages
+# Requirements
+* Perl v5.8.8
+* CPAN module
+* Root privilages
+
+# Usage: 
+	drib [options] command [sub-command] [command-options]
+
+# Install 
+1. Download the latest stable build
+	wget http://drib-pdm.org/download/stable
+2. untar
+	tar -xf drib-0.6.21.tar
+
+3. Move into the drib directory
+	cd drib/
+
+4. Configure the environment
+	sudo ./configure
+
+5. Make
+	sudo make
+
+6. Install
+	sudo make install
+
+# Commands
+* help                Display this message
+* install             Install a package from dist
+* config              Display or change a drib configuration
+* create              Create a package
+* dist				  Upload a file to dist
+* remove              Remove an installed package
+* set                 Update a package setting
+* unset               Remove a package setting
+* list                Show a list of installed packages
+* build				  Run a build manifest
+* deploy			  Deploy a manifest
 
 Options:
  -h, --help         Show this message
  -v, --version      Version of drib
 
+# Contribute
+Feel free to fork and hack away. [How to submit your patches][http://dev.drib-pdm.org/contribute]
 
---------------------------------------------------------------- 
- Self Install
---------------------------------------------------------------- 
-usage: drib self-install [-t type]
+# LICENSE
 
-    sub commands:   
-        none        
-    
-    options:
-        -t, --type=[type]       Install type, see `install` for list of types        
+The MIT License
 
+Copyright (c) 2010 Travis Kuhl travis@kuhl.co
 
---------------------------------------------------------------- 
- Config
---------------------------------------------------------------- 
-usage drib config [key=value ...]
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-    sub commands:
-        key=value   list of key, value conifuration settings
-                    to update. leave blank to display list
-                    of settings
-    
-    options:
-        none
-            
---------------------------------------------------------------- 
- Install
---------------------------------------------------------------- 
-usage: drib install <package|package-file> [-v version [-b branch]]  
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-            'cleanup'=>'cleanup|c',        
-            'version'=>'version=s',
-            'branch'=>'branch=s',
-            'same' => 'same|s',
-            'downgrade' => 'downgrade',
-
-    sub commands:
-        package         Name of the package. Can also prfix the project and include
-                        the version or branch after a dash.
-                        ex: default/package, package-version or package-branch
-        package-file    Package file (must have been created using drib create)
-                        
-                        
-    options:
-        -v, --version=[version]     Version of the package to install
-        -b, --branch=[branch]       Branch to install from. (version takes precedence)
-        -c, --cleanup               Delete any package files used when creating a file
-        -s, --same                  Allow drib to install the same currently installed package
-        -d, --downgrade             Allow drib to install an older package than is currently installed
-                                        
-    example
-        drib install tester -v 0.1.1
-        drib install tester-1.0.tar.gz        
-        drib install default/test-1.0
-
-    alias:
-        i, in, inst
-                                        
---------------------------------------------------------------- 
- Create
---------------------------------------------------------------- 
-usage: drib create <package-manifest> [--no-dist [-b branch [-i install [-t type]]]]
-
-
-    sub commands:
-        package-manifest       Path to the package manifest file
-        
-    options
-        --no-dist                   Do not send package to dist, save in pwd
-        -b, --branch=[branch]       Branch to install the package version to
-        -i, --install               After package is created, install locally        
-        -t, --type=[type]           Build type:
-                                        release = does a normal install (default)
-                                        beta = beta package with unique version
-                                        nightly = nightly package with unique version
-                                        symlink = symlinks all files 
-        
-    example:
-        drib create test.pkg -b nightly
-        
-
---------------------------------------------------------------- 
- Set
----------------------------------------------------------------
-usage: drib set <package> <name>=<value> [... [--no-files]]
-
-    sub commands
-        package             Name of package to update setting
-        name                Name of setting to update
-        value               Value to assign
-        
-    options
-        --no-files          Do not update any settings files
-        
-    example
-        drib set test port=85 hello=world
-        
-
---------------------------------------------------------------- 
- Unset
----------------------------------------------------------------        
-useage: drib unset <package> <name>=<value> [...]  
-
-    sub comamnds
-        package 
-        
-    options
-        none
-        
-    example
-        drib unset test port hello
-        
---------------------------------------------------------------- 
- List
----------------------------------------------------------------        
-useage: drib list [-p project]
-
-    sub commands 
-        none
-        
-    options
-        -p, --project       Show only list of packages for given project
-        
-    example
-        drib list
-        drib list test
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
