@@ -506,13 +506,21 @@ sub create {
                 # dest dir
                 $_dir = dirname($_d);
                 	
+                	# do we need to make the root dir of the dest file
                 	unless ( -d $_dir ) {
                 		`mkdir -p $_dir`;
                 	}
                 
+                # if file already exists
+                # we should drop the old one
+                if ( -e $_d ) {
+					unlink($_d);
+                }
+                	
+                
                 # now see what type of build we have
                 if ( ( $type eq 'symlink' || $type eq 's' ) && $isSet != 1 ) {
-                    my $_s = getcwd() . "/" . $item->{src};			
+                    my $_s = getcwd() . "/" . $item->{src};
                     symlink $_s, $_d;
                 }
                 else {	

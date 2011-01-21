@@ -31,11 +31,11 @@ dir - - - /home/test
 
 # file,find,glob
 file - - - $(dest) ./test.html
-find - - - /home/test $(src) -depth -name "*.html"
+find - - - /home/test $(src) -depth -name "*.html" -or -name "*.conf"
 
 
 # settings file
-settings /home/test/text.conf ./test.conf
+settings /home/test/ ./test.conf
 
 
 # cron

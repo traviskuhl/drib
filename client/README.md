@@ -4,28 +4,17 @@ open source packaging and deployment manager
 # Requirements
 * Perl v5.8.8
 * CPAN module
-* Root privilages
 
 # Usage: 
 	drib [options] command [sub-command] [command-options]
 
 # Install 
-1. Download the latest stable build
-	`wget http://drib-pdm.org/download/stable`
-2. untar
-	`tar -xf drib-0.6.21.tar`
-
-3. Move into the drib directory
-	`cd drib/`
-
-4. Configure the environment
-	`./configure`
-
-5. Make
-	`make`
-
-6. Install
-	`make install`
+1. Download the latest stable build `wget http://drib-pdm.org/download/stable`
+2. Untar `tar -xf drib-0.6.21.tar`
+3. Move into the drib directory `cd drib/`
+4. Configure the environment `./configure`
+5. Make `make`
+6. Install `make install`
 
 # Commands &amp; Options
 	help                Display this message
@@ -50,9 +39,9 @@ For more information about a command, run `drib help <command>`
 Feel free to fork and hack away. [How to submit your patches](http://dev.drib-pdm.org/contribute)
 
 # Get Help
-* IRC: [irc://irc.oftc.net/#dribpdm](irc://irc.oftc.net/#dribpdm)
-* Mailing List: [http://groups.google.com/group/drib-pdm](http://groups.google.com/group/drib-pdm)
-* Bug: [https://github.com/traviskuhl/drib/issues](https://github.com/traviskuhl/drib/issues)
+* IRC: [#dribpdm](irc://irc.oftc.net/#dribpdm)
+* Mailing List: [drib-pdm@googlegroups.com](http://groups.google.com/group/drib-pdm)
+* Bugs: [github issues](https://github.com/traviskuhl/drib/issues)
 
 # LICENSE
 
