@@ -7,6 +7,18 @@ use lib "../src/lib";
 use POSIX;
 use Drib::Utils;
 
+# where 
+my $pwd = getcwd();
+
+# build the package
+`sudo /usr/local/bin/drib create ../pkg/drib.dpf`;
+
+$tar = `find ./ -name '*.tar.gz'`; 
+$tar =~ s/\n//g;
+
+# move it 
+`mv $tar $pwd/pkg`;
+
 # files 
 my $base = "/tmp/".time();
 my $tmp = $base."/drib"; `mkdir -p $tmp`;
@@ -18,7 +30,7 @@ my $version = `egrep -m 1 "Version [0-9\.]+" ../pkg/changelog | sed 's/Version /
 my $name = "drib-".$version.".tar";
 
 # check it 
-if ( -e "./archive/$name" ) {
+if ( -e "./tar/$name" ) {
 	die("Build $version already exists.");
 }
 
@@ -37,13 +49,10 @@ file_put("$tmp/bin/drib", $file);
 # move others
 `cp -r ../src/lib $tmp`;
 `mkdir $tmp/var`;
-`cp ../src/configure $tmp`;
-`cp ../src/README $tmp`;
-`cp ../src/LICENSE $tmp`;
+`cp ../configure $tmp`;
+`cp ../README.md $tmp`;
+`cp ../LICENSE $tmp`;
 `cp -r ../pkg $tmp`;
-
-# where 
-my $pwd = getcwd();
 
 # move
 chdir($tmp."/..");
@@ -51,11 +60,8 @@ chdir($tmp."/..");
 # tar it
 `tar -cf $name ./drib`;
 
-# copy to pub
-`cp $name $pwd`;
-
 # now move it to builds
-`mv $name $pwd/archive`;
+`mv $name $pwd/tar`;
 
 # remove it
 `rm -r $base`;
