@@ -3,7 +3,7 @@ Packages are bundels of code and configuration settings compressed into a gzippe
 
 ## Package Files
 Package files tell drib how to build your package. The most common format for a package file is the 
-`Drib Pacakge File Format` (yes i total made that up) or DPF. Out of the box, drib also supports 
+`Drib Package File Format` (yes we total made that up) or DPF. Out of the box, drib also supports 
 JSON and Perl package files. drib uses the file extension to determine which parser to use on the package file. 
 Here's a list of default package file parsers:
  
@@ -70,7 +70,7 @@ Defines information about the package.
  * **mate changelog** Path to the changelog file 
 
 ### Package Variables
-Package variables allow you to define variables that are globaly replaced in the package file. Package variables are not available outside of the package.
+Package variables allow you to define variables that are globally replaced in the package file. Package variables are not available outside of the package.
 
  * **Example:** `src = ../`
  * **Format:** `key = value`
