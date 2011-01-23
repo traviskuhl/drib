@@ -13,8 +13,11 @@ my $pwd = getcwd();
 # build the package
 `sudo /usr/local/bin/drib create ../pkg/drib.dpf`;
 
-$tar = `find ./ -name '*.tar.gz'`; 
+$tar = `find ./ -maxdepth 1 -name '*.tar.gz'`; 
 $tar =~ s/\n//g;
+
+# copy to current
+`cp -f ./$tar $pwd/pkg/drib-current.tar.gz`;
 
 # move it 
 `mv $tar $pwd/pkg`;

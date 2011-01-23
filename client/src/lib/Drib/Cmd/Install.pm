@@ -618,7 +618,7 @@ sub list {
 				my $local = "";
 	
 					# if local
-					if ( defined $packages->{$pid}->{meta}->{local} ) {
+					if ( defined $packages->{$pid}->{meta}->{local} && $packages->{$pid}->{meta}->{local} ne "" ) {
 						$local = " (Build: ".$packages->{$pid}->{meta}->{local}.")";
 					}
 	
@@ -655,7 +655,7 @@ sub selfUpdate {
 	# set it 
 	my $branch = $opts->{branch} || 'current';
 	my $version = $opts->{version} || $branch;
-	my $src = $opts->{src} || $self->{drib}->{download-src};
+	my $src = $opts->{src} || $self->{drib}->{"download-src"};
 	my $file;
 	
 	# we want to always clean
@@ -672,18 +672,22 @@ sub selfUpdate {
 	else {
 		
 		# make our url
-		my $url = sprintf($src, $branch);
+		my $url = sprintf($src, "drib-".$version);
 		
 		# get our package
 		my $pkg = get($url);
 		
 		# file
-		$file = $self->{drib}->{tmp} . rand_str();
+		$file = rand_str() . ".tar.gz";
 		
 		# save it to tmp
 		file_put($file, $pkg);
 		
+		# clean
+		$opts->{clean} = 1;
+		
 	}
+
 	
 	# now install
 	return $self->install($file, $opts);
