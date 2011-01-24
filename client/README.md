@@ -36,7 +36,7 @@ open source packaging and deployment manager
 For more information about a command, run `drib help <command>`
 
 # Contribute
-Feel free to fork and hack away. [How to submit your patches](http://dev.drib-pdm.org/contribute)
+Feel free to fork and hack away. [How to submit your patches](http://drib-pdm.org/contribute)
 
 # Get Help
 * IRC: [#dribpdm](irc://irc.oftc.net/#dribpdm)

@@ -1,7 +1,8 @@
+# drib
 packaging and distribution platform for web developers
 
-perl/drib
- * main drib package written in perl
+## Client 
+[The main drib package](./client)
 
-apache/mod_drib
- * adds drib package settings to the apache env 
+## Apache
+[Apache modules to import drib settings to apache env](./apache)
