@@ -1,3 +1,12 @@
+Version 0.7.0
+* fixed unset in settings and config module
+* added repo support to dist
+* added repo support to install
+* updated self-update to use repo
+* fixed manifest run commands
+* update remote and local dist modules
+* added public dist module
+
 Version 0.6.23
 * fixed self-update to request the correct file from drib-pdm.org
 * fixed list command to display correct build info

@@ -23,7 +23,7 @@ use Data::Dumper;
 use FindBin;
 
 # version
-our $VERSION = "0.1";
+our $VERSION = "XX";
 
 # lib
 BEGIN { 
@@ -444,11 +444,14 @@ sub parsePackageName {
     # get the raw package name
     my ($self, $name) = @_;
 
+	# things we're going to set at some point
+	my ($project, $version, $pkg, $repo);
+
     # first explode for version
-    ($part,$version) = split(/-/,$name);
+    ($part, $version) = split(/-/,$name);
 
     # now explode for the project and name
-    ($project,$pkg) = split(/\//,$part);
+    ($project, $pkg) = split(/\//,$part);
 
     # if no pkg, it must not have a project
     if ( !$pkg ) {
@@ -456,13 +459,24 @@ sub parsePackageName {
         $project = 'default';
     }
     
+    # does project have a : in it
+    if ( index($project, ':') != -1 ) {
+    	($repo, $project) = split(/\:/, $project);
+    }
+    
+    # default repo
+    unless ($repo) {
+    	$repo = $self->{modules}->{Dist}->{default};
+    }
+    
     # give back an object
     return { 
-    	'full' => "$project/$pkg-$version", 
-    	'name' => $pkg, 
-    	'project' => $project, 
-    	'version' => $version, 
-    	'pid' => $self->getPid($project,$pkg) 
+    	'full'		=> "$project/$pkg-$version", 
+    	'name'		=> $pkg, 
+    	'project'	=> $project, 
+    	'version'	=> $version, 
+    	'pid'		=> $self->getPid($project,$pkg),
+    	'repo'		=> $repo
     };
 
 }

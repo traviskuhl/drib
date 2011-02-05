@@ -20,8 +20,11 @@ my $VERSION = "0.0.1";
 
 sub new {
 
-	# get some
-	my ($ref, $drib) = @_;
+	# get 
+	my($this, $drib, $config) = @_;
+
+	# class
+	my $class = ref($this) || $this;
 
 	# get myself
 	my $self = {
@@ -29,17 +32,19 @@ sub new {
 		# drib
 		'drib' 		=> $drib,
 		
-		# folder
-		'folder' 	=> "",
+		# stuff
+		'host'		=> $config->{host},
+		'port'		=> $config->{port} || 22,
+		'folder' 	=> trim($config->{folder})."/",
+		
 		
 		# some params we need
 		'ssh'		=> 0,
 					
 	};
-
 		
 	# bless and return me
-	bless($self); return $self;
+	bless($self, $class); return $self;
 
 }
 
@@ -51,23 +56,14 @@ sub connect {
 	if ( $self->{ssh} != 0 ) {
 		return;
 	}
-	
-	# get info we need
-	my $host = $self->{drib}->{modules}->{Config}->get("dist-remote-host");
-	my $port = $self->{drib}->{modules}->{Config}->get("dist-remote-port") || 22;
-	my $folder = trim($self->{drib}->{modules}->{Config}->get("dist-remote-folder"))."/";
-	
+		
 	# if no
-	unless ( $host && $folder ) {
-		fail("You need to define server & folder (port optional, defaults to 22):\n drib config dist-remote-host=<hostname>\n drib config dist-remote-port=<port>\n drib config dist-remote-folder=<folder>");
+	unless ( $self->{host} && $self->{folder} ) {
+		fail("You need to define server & folder (port optional, defaults to 22)");
 	}
 
-	# set folder
-	$self->{folder} = $folder;
-	$self->{host} = $host;
-
 	# ssh
-	$self->{ssh} = $self->{drib}->{remote}->new($self->{drib}, $host, $port);
+	$self->{ssh} = $self->{drib}->{remote}->new($self->{drib}, $self->{host}, $self->{port});
 
 }
 

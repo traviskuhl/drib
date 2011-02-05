@@ -20,7 +20,10 @@ my $VERSION = "1.0";
 sub new {
 
 	# get 
-	my($ref,$drib) = @_;
+	my($this, $drib, $config) = @_;
+
+	# class
+	my $class = ref($this) || $this;
 
 	# get myself
 	my $self = {
@@ -29,7 +32,7 @@ sub new {
 		'drib' => $drib,
 		
 		# folder
-		'folder' => $drib->{modules}->{Config}->get('dist-local-folder') || "/home/drib/dist"
+		'folder' => $config->{folder}
 	
 	};
 	
@@ -37,13 +40,13 @@ sub new {
 	$self->{folder} = trim($self->{folder})."/";
 	
 	# bless and return me
-	bless($self); return $self;
+	bless($self, $class); return $self;
 
 }
 
 sub check {
 
-	my ($self,$pkg,$ver) = @_;
+	my ($self, $project, $pkg, $ver) = @_;
 	
 	# make a package name
 	my $name = $pkg."-".$ver.".tar.gz";
@@ -60,7 +63,7 @@ sub check {
 
 sub get {
 
-	my ($self,$pkg,$ver) = @_;
+	my ($self, $project, $pkg, $ver) = @_;
 	
 	# make a package name
 	my $name = $pkg."-".$ver.".tar.gz";

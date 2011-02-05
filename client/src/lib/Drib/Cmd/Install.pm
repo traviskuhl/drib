@@ -58,7 +58,8 @@ sub new {
 					Param('branch|b'),
 					Switch('same|s'),
 					Switch('downgrade|d'),
-					Switch('depend|dep')
+					Switch('depend|dep'),
+					Param('repo|r')
 				]
 			},
 			{
@@ -82,7 +83,7 @@ sub new {
 				'help' => '',
 				'alias' => [],
 				'options' => [
-					Param('src|s'),
+					Param('repo|r'),
 					Param('version|v'),
 					Param('branch|b'),				
 				]
@@ -251,10 +252,11 @@ sub install {
         $project    = $p->{project};
         $pkg        = $p->{name};
         $version    = $p->{version} || ( $opts->{branch} || 'current' );
+        $repo 		= $p->{repo} || ( $opts->{repo} || $self->{drib}->{commands}->{Dist}->{default} );       
     	    
     	# now we need to check with dist 
     	# to see if this package exists 
-    	my $exists = $dist->check($project, $pkg, $version);
+    	my $exists = $dist->check($repo, $project, $pkg, $version);
     
     	# if it exists we need to error
     	unless ( $exists ) {
@@ -266,7 +268,7 @@ sub install {
     
     	# ok so we now have it 
     	# so lets get the file
-    	$file = $dist->get($project, $pkg, $version);    
+    	$file = $dist->get($repo, $project, $pkg, $version);    
     
     	# unpack
     	my $r = $self->{drib}->unpackPackageFile($file);
@@ -295,10 +297,10 @@ sub install {
                 
                 # check if the give version is smaller than the 
                 # one installed
-                if ( versioncmp($manifest->{meta}->{version},$installed->{meta}->{version}) == -1 && !$opts->{'downgrade'} ) {
+                if ( versioncmp($manifest->{meta}->{version}, $installed->{meta}->{version}) == -1 && !$opts->{'downgrade'} ) {
                     return {
                     	"code" => 409,
-                    	"message" => "$pkg-$exists is less than the installed version ($installed->{meta}->{version}).\nUse --downgrade to override."
+                    	"message" => "$pkg-$manifest->{meta}->{version} is less than the installed version ($installed->{meta}->{version}).\nUse --downgrade to override."
                     };
                 }
                 
@@ -653,43 +655,12 @@ sub selfUpdate {
 	my ($self, $opts) = @_;
 	
 	# set it 
-	my $branch = $opts->{branch} || 'current';
+	my $branch 	= $opts->{branch} || 'current';
 	my $version = $opts->{version} || $branch;
-	my $src = $opts->{src} || $self->{drib}->{"download-src"};
+	my $repo 	= $opts->{repo} || "self";
 	my $file;
 	
-	# we want to always clean
-	$opts->{clean} = 1;
-
-	# if src == 'dist' we should try to 
-	# instal from the dist handel
-	if ( $src eq "dist" ) {
-		
-		# set it 
-		$file = "drib/drib-$version";
-	
-	}
-	else {
-		
-		# make our url
-		my $url = sprintf($src, "drib-".$version);
-		
-		# get our package
-		my $pkg = get($url);
-		
-		# file
-		$file = rand_str() . ".tar.gz";
-		
-		# save it to tmp
-		file_put($file, $pkg);
-		
-		# clean
-		$opts->{clean} = 1;
-		
-	}
-
-	
 	# now install
-	return $self->install($file, $opts);
+	return $self->install("$repo:drib/drib-$version");
 	
 }

@@ -54,32 +54,13 @@ sub new {
 				]
 			},
 			{
-				'name' => 'ls-manifest',
+				'name' => 'manifest',
 				'help' => '',
-				'alias' => ['lsm',"ls-manifests"],
+				'alias' => ['ls-manifest', 'ls-manifests', 'list-manifest', 'add-manifest', 'rm-manifest', 'up-manifest'],
 				'options' => []
 			
-			},
-			{
-				'name' => 'add-manifest',
-				'help' => '',
-				'alias' => ['am'],
-				'options' => []
-			},
-			{
-				'name' => 'rm-manifest',
-				'help' => '',
-				'alias' => [],
-				'options' => []
-			},
-			{
-				'name' => 'update-manifest',
-				'help' => '',
-				'alias' => ['up-manifest'],
-				'options' => []
 			}
-		]
-		
+		]		
 	};
 
 	# bless and return me
@@ -100,49 +81,95 @@ sub run {
 	# get some stuff
 	my ($self, $cmd, $opts) = @_;
 	
-	# if there are more than 1 arg we show a list
-	if ( $cmd eq 'add-manifest' ) {
+	# args
+	my @args = @{$self->{drib}->{args}};
 	
-		# add a manifest
-		return $self->addManifest( shift(@{$self->{drib}->{args}}) );
+	# manifest commands
+	if ( $cmd eq 'manifest' ) {
 	
-	}
-
-	elsif ( $cmd eq 'update-manifest' ) {
-	
-		# add a manifest
-		return $self->addManifest( shift(@{$self->{drib}->{args}}), 1);
-	
-	}
-
-	elsif ( $cmd eq 'ls-manifest' ) {
+		# things to watch for arg1
+		my @a1 = ('add', 'ls', 'rm', 'up', 'list');
 		
-		# all
-		my %all = %{$self->{mdb}->all()};
-		
-		# add a manifest
-		foreach my $item ( keys %all ) {
-			if ( $all{$item} ) {
-				msg(" $item");			
+		# the orignal command without aliased
+		my $oc = $self->{drib}->{cmd};	
+	
+			# check me out
+			if ( scalar @args > 0 && in_array(\@a1, $args[0]) ) {
+				$oc = (shift @args)."-manifest"; 
 			}
+		
+		# add a manifest
+		if ( $oc eq "add-manifest" || $oc eq 'update-manifest' ) {
+			return $self->addManifest( shift(@{$self->{drib}->{args}}) );
 		}
-	
-		exit();
+		
+		# list all manifests
+		elsif ( $oc eq 'ls-manifest' || $oc eq 'ls-manifests' || $oc eq 'list-manifest' ) {
+			
+			# all
+			my %all = %{$self->{mdb}->all()};
+			
+			# add a manifest
+			foreach my $item ( keys %all ) {
+				if ( $all{$item} ) {
+					msg(" $item");			
+				}
+			}
+		
+			exit();
+		
+		}	
+
+		# remove a manifest			
+		elsif ( $oc eq 'rm-manifest' ) {
+		
+			# remove it 
+			$self->{mdb}->unset( shift @{$self->{drib}->{args}} );
+		
+			return {
+				"message" => "Manifest removed",
+				"code" => 200
+			}
+		
+		}			
+		elsif ( scalar @{$self->{drib}->{args}} == 1 ) {
+		
+			# get the manifest
+			my $man = $self->{mdb}->get($self->{drib}->{args}[0]);
+			
+				# not a good manifest
+				unless ($man) {
+					return {
+						"message" => "Unknown manifest",
+						"code" => 404
+					};
+				}
+			
+			# show it 
+			my $j = new JSON;
+			
+			# print print and indent
+			$j->pretty(1)->indent;
+			$j->space_after(1);
+			$j->space_before(0);
+		
+			# encode and print
+			print $j->encode($man);
+			
+			# exit out
+			exit();
+		
+		}
+		else {
+			return {
+				"message" => "Unknown manifest command",
+				"code" => 400
+			};
+		}
 	
 	}
 
-	elsif ( $cmd eq 'rm-manifest' ) {
-	
-		# remove it 
-		$self->{mdb}->unset( shift @{$self->{drib}->{args}} );
-	
-		return {
-			"message" => "Manifest removed",
-			"code" => 200
-		}
-	
-	}	
-	
+	# normal config
 	elsif ( scalar @{$self->{drib}->{args}} >= 1 ) {
 	
 		# msg
@@ -200,7 +227,9 @@ sub list {
 
     # loop through and print them
     foreach my $c ( keys %{$config} ) {
-        msg(" $c: $config->{$c} ");
+    	if ( $c ne "repos" ) {
+	        msg(" $c: $config->{$c} ");
+		}
     }
 	
 	# done
@@ -269,7 +298,7 @@ sub all {
 sub unset {
 
 	# what
-	my ($self, $key, $value) = @_;
+	my ($self, $key) = @_;
 
 	# return
 	$self->{db}->unset($key);

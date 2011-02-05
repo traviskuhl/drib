@@ -104,26 +104,29 @@ sub run {
 				};
 			}
 			
-		# settings
-		my $settings = {};
-		
-			# loop each arg and set
-			foreach my $a ( @args ) {
-				
-				# get key and value
-				my ($key,$val) = split(/=/,$a,2);
-			
-				# sett it
-				$settings->{$key} = $val;
-			
-			}
-			
 		# set or unset the settings
 		if ( $cmd eq "set" ) {
+			
+			# settings
+			my $settings = {};
+			
+				# loop each arg and set
+				foreach my $a ( @args ) {
+					
+					# get key and value
+					my ($key,$val) = split(/=/,$a,2);
+				
+					# sett it
+					$settings->{$key} = $val;
+				
+				}		
+		
+				# set them
 			$resp = $self->set($pkg->{pid}, $settings);					
+			
 		}
 		else {
-			$resp = $self->unset($pkg->{pid}, $settings);
+			$resp = $self->unset($pkg->{pid}, \@args);
 		}
 	
 		# list
@@ -218,9 +221,6 @@ sub unset {
 	
     # stuff
     my ($self, $pid, @vars) = @_;
-    
-    # vars
-    my @vars = ();
         
     # make sure package is installed
     unless ( $self->{drib}->{packages}->get($pid) ) {
@@ -233,13 +233,18 @@ sub unset {
     # get all settings
     my $settings = $self->get($pid);
     
+    # new settings
+    my $new_settings = {};
+    
     # now loop through and get settings
-    foreach my $var ( @vars ) {
-        delete $settings->{$var};
+	foreach my $key ( keys %{$settings} ) {
+		unless ( in_array(@vars, $key) || $key eq "" ) {
+			$new_settings->{$key} = $settings->{$key};	
+		}
     }
-
+	
     # reset settings
-    $self->{db}->set($pid, $settings);
+    $self->{db}->set($pid, $new_settings);
 
     # regen text files
 	$self->_rebuild_files();
@@ -450,8 +455,11 @@ sub _rebuild_settings_file {
         }
         
     }	
+    
+    # where is the flat settings file
+    my $file = $self->{drib}->{modules}->{Config}->get('flat-settings-file') || $self->{drib}->{var}."/settings.txt";
 
 	# save it
-	file_put($VAR."/settings.txt",$txt);
+	file_put($file, $txt);
 
 }

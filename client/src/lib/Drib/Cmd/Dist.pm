@@ -21,6 +21,7 @@ use JSON;
 use Getopt::Lucid qw( :all );
 use Data::Dumper;
 use POSIX;
+use Config;
 
 # drib
 use Drib::Utils;
@@ -40,8 +41,14 @@ sub new {
 		# shortcuts
 		'tmp' => $drib->{tmp},				# tmp folder name
 		
+		# db shortcut
+		'db' => new Drib::Db('dist', $drib->{var}),		
+		
+		# default dist
+		'default' => $drib->{modules}->{Config}->get('default-dist'),
+		
 		# client
-		'client' => {},
+		'clients' => {},
 		
 		# commands
 		'commands' => [
@@ -50,7 +57,22 @@ sub new {
 				'help' => '', 
 				'alias' => ['d','ds'],
 				'options' => [
+					Param('repo|r')
 				]
+			},
+			{
+				'name' => 'add-repo',
+				'help' => '',
+				'alias' => [],
+				'options' => [				
+				]			
+			},
+			{
+				'name' => 'ls-repo',
+				'help' => '',
+				'alias' => [],
+				'options' => [				
+				]			
 			},
 			{ 
 				'name' => 'search',
@@ -62,15 +84,17 @@ sub new {
 		]
 		
 	};
-
-    # figure our what dist package to use
-    my $mod = $drib->{modules}->{Config}->get('dist') || "Drib::Dist::Local";
-
-		# include the module
-		$drib->includeModule($mod);
-
-		# new
-		$self->{client} = new $mod($drib);
+	
+	# check to see if we have our
+	# self repo
+	unless ( $self->{db}->get('self') ) {
+		$self->{db}->set('self',{
+			"name" => "self",
+			"class" => "Drib::Dist::Public",
+			"base" => "http://drib-pdm.org/download/pkg/",
+			"path" => "%name-%version.tar.gz"
+		});
+	}
 
 	# bless and return me
 	bless($self); return $self;
@@ -91,34 +115,67 @@ sub run {
 	my ($self, $cmd, $opts) = @_;
 	
 	# args
-	my @args = @{$self->{drib}->args};
+	my @args = @{$self->{drib}->{args}};
 
-	# no args?
-	if ( scalar @args == 0 ) {
-		return {
-			'code' => 404,
-			'message' => "No package files given to push"
-		}
+		# things to watch for arg1
+		my @a1 = ('add', 'ls', 'rm', 'list');
+			
+			# check me out
+			if ( scalar @args > 0 && in_array(\@a1, $args[0]) ) {
+				$cmd = (shift @args)."-repo";
+			}
+
+	# add a dist
+	if ( $cmd eq "add-repo" ) {
+	
+		# just run add dist
+		return $self->add();
+	
 	}
-
-	# foreach args go ahead and push
-	foreach my $file (@args) {
-
-		# msg
-		my @msg = ();
-	
-		# do it
-		push(@msg, $self->dist($file, $opts)->{message});
-	
-		# return to the parent with a general message
-		return {
-			'message' => join("\n",@msg),
-			'code' => 0
-		};
+	elsif ( $cmd eq "ls-repo" || $cmd eq "list-repo" ) {
 		
+		# all
+		my %all = %{$self->{db}->all()};
+		
+		# add a manifest
+		foreach my $item ( keys %all ) {
+			if ( $all{$item} ) {
+				msg(" $item");			
+			}
+		}
+	
+		exit();
 	
 	}
+	else {
+	
+		# no args?
+		if ( scalar @args == 0 ) {
+			return {
+				'code' => 404,
+				'message' => "No package files given to push"
+			}
+		}
+	
+		# foreach args go ahead and push
+		foreach my $file (@args) {
+	
+			# msg
+			my @msg = ();
+		
+			# do it
+			push(@msg, $self->dist($file, $opts)->{message});
+		
+			# return to the parent with a general message
+			return {
+				'message' => join("\n",@msg),
+				'code' => 0
+			};
+					
+		}
 
+	}
+	
 }
 
 ##
@@ -131,9 +188,6 @@ sub dist {
 
 	# get 
 	my ($self, $file, $opts) = @_;
-	
-	# branch
-	my $branch = $opts->{branch} || 'current';
 	
 	# no tar.gz on package name
 	unless ( $file =~ /\.tar\.gz/ ) {
@@ -167,15 +221,64 @@ sub dist {
 				"code" => 400,
 				"message" => "Could not untar package file"	
 			};			
+		}	
+		
+	# tell them what's up
+	msg("Preparing Dist Process:\n");
+	
+	# repo
+	my $repo = $opts->{repo};
+	
+		# unless given a repo
+		unless ( $repo ) {
+		
+			# get all repos
+			my @repos = keys %{$self->{db}->all()};
+						
+			# target 
+			msg(" Available Repositories:");
+			
+			# default
+			my $d = 0;
+			
+			# give them optios
+			for ( $i = 0; $i < length(@repos); $i++ ) {
+			
+				# is it the default
+				$d = $i if ( $repos[$i] eq $self->{default} );
+			
+				# msg 
+				msg("  $i ".$repos[$i]);
+				
+			}
+			
+			# ask
+			my $r = ask("\n Repository [$d]:");
+		
+			# set it 
+			$repo = $repos[$r];
+			
 		}
-
+		
+	# connect to our repo
+	my $dist = $self->init($repo);		
+	
+		# has code
+		if ( defined $dist->{code} ) {
+			fail("Could not connect to dist module");
+		}
+			
+	# branch
+	my $branch = $opts->{branch} || 'current';
+	
+		# ask about branch
+		$branch = ask(" Branch [$branch]:");	
+	
 	my $project	= $man->{project};
 	my $name	= $man->{meta}->{name};
 	my $version = $man->{meta}->{version};
 
-#print Dumper($man->{changelog}); die;
-
-	if ( $self->check($project, $name, $version) ) {
+	if ( $dist->check($project, $name, $version) ) {
 
 		# see if they're using a file:
 		if ( $man->{ov} && -e $man->{ov} && $man->{type} eq 'release' ) {
@@ -267,7 +370,7 @@ sub dist {
 	}	
 
 	# upload
-	$r = $self->upload({
+	$r = $dist->upload({
 	   'project'	=> $man->{project},
 	   'name'		=> $man->{meta}->{name},
 	   'version'	=> $man->{meta}->{version},
@@ -299,15 +402,154 @@ sub dist {
 }
 
 ##
+## @brief add a new dist server
+##
+sub add {
+
+	# self
+	my ($self) = @_;
+
+	# questions
+	my %types = (
+		"local" => {
+			"class" => "Drib::Dist::Local",
+		 	"questions" => [
+				{"text" => "Local Folder Path:", "var" => "folder"}				
+			],
+		},
+		"remote" => {
+			"class" => "Drib::Dist::Remote",		
+		 	"questions" => [
+				{"text" => "Remote Host:", "var" => "host"},
+				{"text" => "Remote Port:", "var" => "port"},
+				{"text" => "Remote Folder Path:", "var" => "folder"},			
+			],
+		},
+		"public" => {
+			"class" => "Drib::Dist::Public",		
+		 	"questions" => [
+				{"text" => "Base Url:", "var" => "base"},
+				{"text" => "Folder Path Syntax [%project/%name-%version.tar]:", "var" => "path", "default" => "%project/%name-%version.tar.gz"},
+			],
+		}
+	);
+	
+	my @types = keys %types;
+
+	# cofnig
+	my $config = {};
+
+	# figure out what type
+	my $type = ask(" What type of dist server [".join(", ", @types)."]:");
+	
+		# not a good type
+		unless ( in_array(\@types, $type) ) {
+			return {
+				'message' => "Unknown dist type",
+				'code' => 400
+			};
+		}
+
+	# name the dist
+	my $name = ask(" Name of this dist [default]:");
+
+		# name it default
+		if ( $name eq "" ){ $name = "default"; }
+
+		# check if it's taken
+		if ( $self->{db}->get($name) ) {
+			return {
+				"message" => "Dist name $name already in use",
+				"code" => 400
+			};
+		}
+
+	# add it 
+	$config->{name} = $name;
+
+	# now loop throug hthe quests
+	foreach my $q ( @{$types{$type}->{questions}} ) {
+		
+		# ask them and  set the variable in config
+		$config->{$q->{var}} = ask(" ".$q->{text});
+	
+		# if it's blank and there's a default
+		if ( $config->{$q->{var}} eq "" && exists $q->{default} ) {
+			$config->{$q->{var}} = $q->{default};
+		}
+	
+	}
+
+	# default
+	my $deafult = ask(" Make this your default dist [y]:");
+
+	# is it the default
+	if ( $default eq "" || substr($default, 0, 1) eq "y" ) {
+		$self->{drib}->{modules}->{Config}->set('default-dist', $name),
+	}
+	
+	# set our class
+	$config->{class} = $types{$type}->{class};
+
+	# save this dist
+	$self->{db}->set($name, $config);
+
+	# all good return a thank you
+	return {
+		"message" => "Dist Added",
+		"code" => 200
+	};
+
+}
+
+##
+## @brief connect to our rep
+##
+sub init {
+	
+	# self
+	my ($self, $name) = @_;	
+
+	# make sure it's a good reo
+	my $repo = $self->{db}->get($name);
+
+		# nope
+		unless ( $repo ) {
+			return {
+				"code" => 404
+			};
+		}
+		
+	# mod
+	my $mod = $repo->{class};
+
+	# include the module
+	$self->{drib}->includeModule( $mod );
+
+	# new
+	$self->{clients}->{$name} = $mod->new($self->{drib}, $repo);
+	
+	# give it back just in case
+	return $self->{clients}->{$name};
+
+}
+
+
+##
 ## @brief pass through to dist client
 ##
 sub upload {
 	
 	# self
-	my ($self, $args) = @_;
+	my ($self, $name, $args) = @_;
+		
+		# make sure it's connected
+		unless ( defined $self->{clients}->{$name} ) {
+			$self->init($name);
+		}
 
 	# pass
-	$self->{client}->upload($args);
+	$self->{clients}->{$name}->upload($args);
 
 }
 
@@ -318,10 +560,15 @@ sub upload {
 sub check {
 
 	# self
-	my ($self, $project, $pkg, $ver) = @_;
+	my ($self, $name, $project, $pkg, $ver) = @_;
+
+		# make sure it's connected
+		unless ( defined $self->{clients}->{$name} ) {
+			$self->init($name);
+		}
 
 	# pass me
-	$self->{client}->check($project, $pkg, $ver);
+	return $self->{clients}->{$name}->check($project, $pkg, $ver);
 
 }
 
@@ -332,9 +579,14 @@ sub check {
 sub get {
 
 	# self
-	my ($self, $project, $pkg, $ver) = @_;
+	my ($self, $name, $project, $pkg, $ver) = @_;
+
+		# make sure it's connected
+		unless ( defined $self->{clients}->{$name} ) {
+			$self->init($name);
+		}
 
 	# pass me
-	$self->{client}->get($project, $pkg, $ver);
+	return $self->{clients}->{$name}->get($project, $pkg, $ver);
 
 }
