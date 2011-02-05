@@ -1,3 +1,7 @@
+Version 0.7.1
+* fixed dist backwards check
+* fixed repo command settings
+
 Version 0.7.0
 * fixed unset in settings and config module
 * added repo support to dist

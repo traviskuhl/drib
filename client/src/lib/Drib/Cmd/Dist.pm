@@ -61,6 +61,12 @@ sub new {
 				]
 			},
 			{
+				'name' => 'repo',
+				'help' => '',
+				'alias' => [],
+				'options' => []			
+			},			
+			{
 				'name' => 'add-repo',
 				'help' => '',
 				'alias' => [],
@@ -71,8 +77,7 @@ sub new {
 				'name' => 'ls-repo',
 				'help' => '',
 				'alias' => [],
-				'options' => [				
-				]			
+				'options' => []			
 			},
 			{ 
 				'name' => 'search',
@@ -94,6 +99,36 @@ sub new {
 			"base" => "http://drib-pdm.org/download/pkg/",
 			"path" => "%name-%version.tar.gz"
 		});
+	}
+	
+	# we want to be backwards compatable
+	# so we should check config for dist-remote-* and 
+	# map that over as defaut
+	if ( $self->{drib}->{modules}->{Config}->get("dist") ) {
+		
+		# config shortcut
+		my $c = $self->{drib}->{modules}->{Config};
+		
+		# get it 
+		my $d = $c->get("dist");		
+	
+		# map it over
+		if ( $d eq "Drib::Dist::Remote" ) {
+		
+			# set default
+			$self->{db}->set('default',{
+				"name" => "default",
+				"class" => $d,
+				"host" => $c->get("dist-remote-host"),
+				"port" => $c->get("dist-remote-port"),
+				"folder" => $c->get("dist-remote-folder")
+			});			
+			
+			# unset some stuff
+			$c->unset(["dist", "dist-remote-host", "dist-remote-port", "dist-remote-folder"]);
+			
+		}
+	
 	}
 
 	# bless and return me
@@ -144,6 +179,28 @@ sub run {
 			}
 		}
 	
+		exit();
+	
+	}
+	elsif ( $cmd eq "repo" ) {
+	
+		# get the repo
+		my $repo = $self->{db}->get( (shift @args) );
+	
+			# needs to exists
+			unless ( $repo ) {
+				return {
+					'code' => 404,
+					'message' => "Could no find repo $repo"
+				};
+			}
+	
+		# loop and show
+		foreach my $key ( keys %{$repo} ) {
+			msg(" $key: $repo->{$key}");
+		}
+	
+		# done
 		exit();
 	
 	}

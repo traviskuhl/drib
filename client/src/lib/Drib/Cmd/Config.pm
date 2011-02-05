@@ -299,9 +299,16 @@ sub unset {
 
 	# what
 	my ($self, $key) = @_;
-
-	# return
-	$self->{db}->unset($key);
+	
+	# one or more
+	if ( ref $key eq "ARRAY" ) {	
+		foreach my $k (@{$key}) { 
+			$self->{db}->unset($k);
+		}
+	}
+	else {
+		$self->{db}->unset($key);
+	}
 
 	return {
 		'code' => 200,
