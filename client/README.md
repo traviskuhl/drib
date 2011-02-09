@@ -28,6 +28,7 @@ open source packaging and deployment manager
 	list                Show a list of installed packages
 	build				Run a build manifest
 	deploy				Deploy a manifest
+	repo				Show dist repository information
 
 	Options:
 	 -h, --help         Show this message

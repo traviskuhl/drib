@@ -50,7 +50,7 @@ _setup_cpan();
 		print "In order to continue, we're going to try updating it for you.\n";
 		print "A bunch of shit is going to scroll across the screen. Don't\n";
 		print "be alarmed. It's very normal. Don't take it personally. Should there\n";
-		print "be any problems, try instaling manually using this commands:\n\n";
+		print "be any problems, try installing manually using this commands:\n\n";
 		print "  perl -MCPAN -e 'install Bundle::CPAN'\n\n";
 		print "This process may take a few minutes.\n";		
 		print ('-'x50)."\n\n";
@@ -82,7 +82,7 @@ my $lib = "$bin/../lib";
 mkdir($tmp); mkdir($var);
 
 # vars
-my $args = " --install --cleanup --var src=../ --var bin=$bin --var lib=$lib";
+my $args = " --install --cleanup --var src=./src --var bin=$bin --var lib=$lib";
 
 # print 
 print "Building Makefile\n";
@@ -91,7 +91,7 @@ print "Building Makefile\n";
 open(MF, ">./Makefile");
 
 # print it 
-print MF "DRIB=./bin/drib\n";
+print MF "DRIB=./src/bin/drib\n";
 print MF "all:\n";
 print MF '	@$(DRIB) --check-install --bin='.$bin."\n\n";
 print MF "install:\n";
@@ -178,6 +178,7 @@ sub _setup_cpan {
 	    unzip => bin_loc('unzip'),
 	    wget => bin_loc('wget'),
 	    urllist => [qw(
+	    	http://www.cpan.org/
 	        http://cpan.pair.com/
 	        http://mirror.hiwaay.net/CPAN/
 	        ftp://ftp.dc.aleron.net/pub/CPAN/
