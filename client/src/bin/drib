@@ -23,7 +23,7 @@ use Data::Dumper;
 use FindBin;
 
 # version
-our $VERSION = "XX";
+our $VERSION = "0.7.2";
 
 # lib
 BEGIN { 
