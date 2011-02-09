@@ -82,7 +82,7 @@ my $lib = "$bin/../lib";
 mkdir($tmp); mkdir($var);
 
 # vars
-my $args = " --install --cleanup --var src=./src --var bin=$bin --var lib=$lib";
+my $args = " --install --cleanup --var src=../src --var bin=$bin --var lib=$lib";
 
 # print 
 print "Building Makefile\n";

@@ -1,3 +1,6 @@
+Version 0.7.2
+* fixed configure paths
+
 Version 0.7.1
 * fixed dist backwards check
 * fixed repo command settings
