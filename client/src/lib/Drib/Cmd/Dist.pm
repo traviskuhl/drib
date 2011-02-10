@@ -281,7 +281,7 @@ sub dist {
 		}	
 		
 	# tell them what's up
-	msg("Preparing Dist Process:\n");
+	msg("Preparing Dist Process:");
 	
 	# repo
 	my $repo = $opts->{repo};
@@ -299,18 +299,18 @@ sub dist {
 			my $d = 0;
 			
 			# give them optios
-			for ( $i = 0; $i < length(@repos); $i++ ) {
+			for ( $i = 0; $i <= length(@repos); $i++ ) {
 			
 				# is it the default
 				$d = $i if ( $repos[$i] eq $self->{default} );
 			
 				# msg 
-				msg("  $i ".$repos[$i]);
+				msg("   [$i] ".$repos[$i]);
 				
 			}
 			
 			# ask
-			my $r = ask("\n Repository [$d]:");
+			my $r = ask(" Select a Repository [$d]:");
 		
 			# set it 
 			$repo = $repos[$r];
