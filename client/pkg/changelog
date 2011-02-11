@@ -1,3 +1,10 @@
+Version 0.7.4
+* fixed dist flow
+* thanks dailyd
+
+Version 0.7.3
+* fixed bug where last repo not shown in `dist` cmd
+
 Version 0.7.2
 * fixed configure paths
 

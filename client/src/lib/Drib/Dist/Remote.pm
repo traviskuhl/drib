@@ -21,13 +21,14 @@ my $VERSION = "0.0.1";
 sub new {
 
 	# get 
-	my($this, $drib, $config) = @_;
+	my($ref, $drib, $config) = @_;
 
-	# class
-	my $class = ref($this) || $this;
 
 	# get myself
 	my $self = {
+		
+		# name
+		'name' => 'remote',
 		
 		# drib
 		'drib' 		=> $drib,
@@ -44,7 +45,7 @@ sub new {
 	};
 		
 	# bless and return me
-	bless($self, $class); return $self;
+	bless($self); return $self;
 
 }
 

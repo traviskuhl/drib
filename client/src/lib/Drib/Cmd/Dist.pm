@@ -97,7 +97,8 @@ sub new {
 			"name" => "self",
 			"class" => "Drib::Dist::Public",
 			"base" => "http://drib-pdm.org/download/pkg/",
-			"path" => "%name-%version.tar.gz"
+			"path" => "%name-%version.tar.gz",
+			"type" => "public"
 		});
 	}
 	
@@ -121,7 +122,8 @@ sub new {
 				"class" => $d,
 				"host" => $c->get("dist-remote-host"),
 				"port" => $c->get("dist-remote-port"),
-				"folder" => $c->get("dist-remote-folder")
+				"folder" => $c->get("dist-remote-folder"),
+				"type" => "remote"				
 			});			
 			
 			# unset some stuff
@@ -153,7 +155,7 @@ sub run {
 	my @args = @{$self->{drib}->{args}};
 
 		# things to watch for arg1
-		my @a1 = ('add', 'ls', 'rm', 'list');
+		my @a1 = ('add', 'ls', 'rm', 'list', 'edit');
 			
 			# check me out
 			if ( scalar @args > 0 && in_array(\@a1, $args[0]) ) {
@@ -166,6 +168,24 @@ sub run {
 		# just run add dist
 		return $self->add();
 	
+	}
+	elsif ( $cmd eq "edit-repo" ) {
+				
+		# edit
+		return $self->add($args[0]);
+	
+	}
+	elsif ( $cmd eq "rm-repo" ) {
+		
+		# unset
+		$self->{db}->unset($args[0]);
+	
+		# return
+		return {
+			'message' => "Repo removed",
+			"code" => 200
+		};
+		
 	}
 	elsif ( $cmd eq "ls-repo" || $cmd eq "list-repo" ) {
 		
@@ -191,7 +211,7 @@ sub run {
 			unless ( $repo ) {
 				return {
 					'code' => 404,
-					'message' => "Could no find repo $repo"
+					'message' => "Could not find repo $repo"
 				};
 			}
 	
@@ -296,7 +316,7 @@ sub dist {
 			msg(" Available Repositories:");
 			
 			# default
-			my $d = 0;
+			my $d = -1;
 			
 			# give them optios
 			for ( $i = 0; $i <= length(@repos); $i++ ) {
@@ -311,9 +331,14 @@ sub dist {
 			
 			# ask
 			my $r = ask(" Select a Repository [$d]:");
-		
+							
 			# set it 
-			$repo = $repos[$r];
+			if ( $d != -1 && $r eq "" ) {
+				$repo = $repos[$d];
+			}
+			else {
+				$repo = $repos[$r];
+			}
 			
 		}
 		
@@ -427,13 +452,14 @@ sub dist {
 	}	
 
 	# upload
-	$r = $dist->upload({
+	$r = $self->{clients}->{$repo}->upload({
 	   'project'	=> $man->{project},
 	   'name'		=> $man->{meta}->{name},
 	   'version'	=> $man->{meta}->{version},
 	   'branch'		=> $branch,
 	   'tar' 		=> $tar
     });	
+    
     
     # name
     my $n = $man->{project}."/".$man->{meta}->{name}."-".$man->{meta}->{version};
@@ -464,7 +490,10 @@ sub dist {
 sub add {
 
 	# self
-	my ($self) = @_;
+	my ($self, $repo) = @_;
+	
+	# get the repo
+	my $_repo = $self->{db}->get($repo) || 0;
 
 	# questions
 	my %types = (
@@ -495,44 +524,73 @@ sub add {
 
 	# cofnig
 	my $config = {};
-
-	# figure out what type
-	my $type = ask(" What type of dist server [".join(", ", @types)."]:");
+	my $name = "";
+	my $type = "";
 	
-		# not a good type
-		unless ( in_array(\@types, $type) ) {
-			return {
-				'message' => "Unknown dist type",
-				'code' => 400
-			};
-		}
-
-	# name the dist
-	my $name = ask(" Name of this dist [default]:");
-
-		# name it default
-		if ( $name eq "" ){ $name = "default"; }
-
-		# check if it's taken
-		if ( $self->{db}->get($name) ) {
-			return {
-				"message" => "Dist name $name already in use",
-				"code" => 400
-			};
-		}
-
+	# already a repo
+	if ( $_repo ) {
+		$config = $_repo;
+		$name = $_repo->{name};
+		$type = $_repo->{type};
+	}
+	else {
+	
+		# figure out what type
+		$type = ask(" What type of dist server [".join(", ", @types)."]:");
+		
+			# not a good type
+			unless ( in_array(\@types, $type) ) {
+				return {
+					'message' => "Unknown dist type",
+					'code' => 400
+				};
+			}
+			
+		$config->{type} = $type;
+	
+		# name the dist
+		$name = ask(" Name of this dist [default]:");
+	
+			# name it default
+			if ( $name eq "" ){ $name = "default"; }
+	
+			# check if it's taken
+			if ( $self->{db}->get($name) ) {
+				return {
+					"message" => "Dist name $name already in use",
+					"code" => 400
+				};
+			}
+			
+	}
+	
 	# add it 
 	$config->{name} = $name;
 
 	# now loop throug hthe quests
 	foreach my $q ( @{$types{$type}->{questions}} ) {
 		
-		# ask them and  set the variable in config
-		$config->{$q->{var}} = ask(" ".$q->{text});
+		if ( defined $config->{$q->{var}} ) {
+		
+			# ask them and  set the variable in config
+			my $r = ask(" ".$q->{text}." [".$config->{$q->{var}}."]");
+		
+			# no empty
+			unless ( $r eq "" ) {
+				$config->{$q->{var}} = $r;
+			}
+		
+		}
+		else {
+			
+			# ask them and  set the variable in config
+			$config->{$q->{var}} = ask(" ".$q->{text});
+		
+			# if it's blank and there's a default
+			if ( $config->{$q->{var}} eq "" && exists $q->{default} ) {
+				$config->{$q->{var}} = $q->{default};
+			}
 	
-		# if it's blank and there's a default
-		if ( $config->{$q->{var}} eq "" && exists $q->{default} ) {
-			$config->{$q->{var}} = $q->{default};
 		}
 	
 	}
