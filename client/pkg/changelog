@@ -1,3 +1,8 @@
+Version 0.7.5
+* fixed dist new version bug
+* fixed dist prompt flow
+* renamed dribit dist package
+
 Version 0.7.4
 * fixed dist flow
 * thanks dailyd

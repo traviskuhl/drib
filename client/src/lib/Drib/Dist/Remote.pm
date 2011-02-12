@@ -51,7 +51,7 @@ sub new {
 
 sub connect {
 
-	my ($self) = @_;
+	my ($self, $pword) = @_;
 	
 	# have ssh
 	if ( $self->{ssh} != 0 ) {
@@ -64,7 +64,7 @@ sub connect {
 	}
 
 	# ssh
-	$self->{ssh} = $self->{drib}->{remote}->new($self->{drib}, $self->{host}, $self->{port});
+	$self->{ssh} = $self->{drib}->{remote}->new($self->{drib}, $self->{host}, $self->{port}, $pword);
 
 }
 

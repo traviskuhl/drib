@@ -607,6 +607,7 @@ sub create {
     # changelog
 	$cl = file_get($pwd.'/'.$Meta->{changelog}) || "";
 
+
 	# need to create our own version of the manifest
 	my $manifest = {
 	    'project' => $project,

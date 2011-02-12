@@ -28,7 +28,7 @@ use Drib::Utils;
 sub new {
 
 	# get some
-	my ($ref, $drib, $host, $port) = @_;
+	my ($ref, $drib, $host, $port, $pword) = @_;
 
 	# get myself
 	my $self = {
@@ -41,10 +41,11 @@ sub new {
 		'pass' => "",
 		'host' => $host,
 		'port' => $port,
+		'pass' => $pword || 0,
 			
 		# connection
-		'ssh' => {},
-		'scp' => {},
+		'_ssh' => 0,
+		'_scp' => 0,
 			
 	};
 	
@@ -65,6 +66,7 @@ sub connect {
 	# host and port
 	my ($self) = @_;
 
+	if ( $self->{_ssh} ) { return; }
 	
 	# !pass
 	unless ( $self->{pass} ) {
@@ -92,10 +94,10 @@ sub connect {
         }
 
 	# save it 
-	$self->{ssh} = $ssh;
+	$self->{_ssh} = $ssh;
 
 	# connect to scp also
-	$self->{scp} = new Net::SCP::Expect(host=>$self->{host}, port=>$self->{port}, 'user'=>$self->{user}, password=>$pass, auto_yes=>1, no_check=>1);
+	$self->{_scp} = new Net::SCP::Expect(host=>$self->{host}, port=>$self->{port}, 'user'=>$self->{user}, password=>$pass, auto_yes=>1, no_check=>1);
 	
 	# return
 	return $ssh;
@@ -112,7 +114,7 @@ sub exec {
 	$self->connect($host, $port);
 
 	# run exex
-	return $self->{ssh}->exec($cmd);
+	return $self->{_ssh}->exec($cmd);
 
 }
 
@@ -123,7 +125,7 @@ sub scp {
 	my ($self, $local, $remote) = @_;
 
 	# do it 
-	return $self->{scp}->scp($local, $remote);
+	return $self->{_scp}->scp($local, $remote);
 
 }
 

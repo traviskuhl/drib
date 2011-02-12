@@ -34,7 +34,24 @@ my $name = "drib-".$version.".tar";
 
 # check it 
 if ( -e "./tar/$name" ) {
-	die("Build $version already exists.");
+
+	# msg
+	msg("Build $version already exists.");
+	
+	# open changelog
+	system("vi ../pkg/changelog");
+
+	# get the build version from the changelog
+	$version = `egrep -m 1 "Version [0-9\.]+" ../pkg/changelog | sed 's/Version //'`; chomp($version);
+	
+	# name of build
+	$name = "drib-".$version.".tar";
+	
+	# check it 
+	if ( -e "./tar/$name" ) {	
+		fail("Still no good. $name already exists");
+	}
+	
 }
 
 # now start copying some things over
@@ -70,4 +87,20 @@ chdir($tmp."/..");
 `rm -r $base`;
 
 # all done
-print "Done!\n";
+my $ci = ask("Done building new packages. What to check everything in?");
+
+if ( $ci eq "" || lc(substr($ci,0,1)) eq 'y' ) {
+	
+	# run git add  
+	`git add`;
+
+	# run commit
+	`git commit`;
+
+	# push
+	`git push`;
+
+}
+
+# done
+msg("DONE!");

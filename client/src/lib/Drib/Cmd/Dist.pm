@@ -342,8 +342,11 @@ sub dist {
 			
 		}
 		
+	# we're going to need their password
+	my $pword = ask(" Password for ".$self->{db}->get($repo)->{name}.":", 1);
+		
 	# connect to our repo
-	my $dist = $self->init($repo);		
+	my $dist = $self->init($repo, $pword);		
 	
 		# has code
 		if ( defined $dist->{code} ) {
@@ -354,36 +357,57 @@ sub dist {
 	my $branch = $opts->{branch} || 'current';
 	
 		# ask about branch
-		$branch = ask(" Branch [$branch]:");	
+		$branch = ask(" Branch [$branch]:") || $branch;	
 	
 	my $project	= $man->{project};
 	my $name	= $man->{meta}->{name};
 	my $version = $man->{meta}->{version};
-
+	
 	if ( $dist->check($project, $name, $version) ) {
 
 		# see if they're using a file:
 		if ( $man->{ov} && -e $man->{ov} && $man->{type} eq 'release' ) {
 
 			# ask them if they want to add to the file
-			my $r = ask("Version $version already exists for $name. Would you like to up the version and add a comment? [y]");
+			my $r = ask(" Version $version already exists for $name. Would you like to up the version and add a comment? [y]");
 
 			# if we get y
 			if ( lc(substr($r,0,1)) eq "y" || $r eq "" ) {
-
-				# one more
-				my $iv = incr_version($version);
-
-				# ask for the new version
-				my $v = ask(" New version Number [".$iv."]:");
-
-					# no number
-					if ( $v eq "" ) {
-						$v = $iv;
+		
+				# good
+				my $good = 0;
+				
+				# loop until we find a good verison
+				while ( $good != 1 ) {
+				
+					# one more
+					my $iv = incr_version($version);
+	
+					# ask for the new version
+					$version = ask("  New version number [".$iv."]:");
+	
+						# no number
+						if ( $version eq "" ) {
+							$version = $iv;
+						}
+						
+						# -1 exit
+						if ( $version == -1 ) {
+							exit;
+						}
+					
+					# good
+					unless ( $dist->check($project, $name, $version) ) {
+						$good = 1;
 					}
+					else {
+						msg("   Version $version also exists. Try again.");
+					}
+											
+				}
 
 				# comment
-				my $c = ask(" Add Comments [n]:");
+				my $c = ask("  Add Comments [n]:");
 
 					if ( lc(substr($r,0,1)) eq "y" ) {
 
@@ -402,15 +426,15 @@ sub dist {
 					}
 
 				# append our new stuff
-				my $nf = "Version $v\n$c\n\n".$man->{changelog};
+				my $nf = "Version $v\n$c\n\n". file_get($man->{ov});
 
 				# save it 
-				file_put("$tmp/changelog",$nf);	# to package
-				file_put($man->{ov},$nf); # to vhangelog file
+				file_put("$tmp/changelog", $nf);	# to package
+				file_put($man->{ov}, $nf); # to vhangelog file
 
 				# done
 				# set the new version number
-				$version = $man->{meta}->{version} = $v;
+				$man->{meta}->{version} = $version;
 
 				# resave the manifest	
 				file_put($tmp."/.manifest", to_json($man) );
@@ -428,11 +452,11 @@ sub dist {
 				`sudo tar -czf $name.tar.gz .`;
 
 				# package
-				$file = file_get($tmp."/$name.tar.gz");
+				$tar = file_get($tmp."/$name.tar.gz");
 
 				# move back
 				chdir($pwd);
-
+				
 			}
 			else {			
 				return {
@@ -623,7 +647,7 @@ sub add {
 sub init {
 	
 	# self
-	my ($self, $name) = @_;	
+	my ($self, $name, $pword) = @_;	
 
 	# make sure it's a good reo
 	my $repo = $self->{db}->get($name);
@@ -643,6 +667,11 @@ sub init {
 
 	# new
 	$self->{clients}->{$name} = $mod->new($self->{drib}, $repo);
+	
+	# connect
+	if ( $pword ) { 
+		$self->{clients}->{$name}->connect($pword)
+	}
 	
 	# give it back just in case
 	return $self->{clients}->{$name};

@@ -9,7 +9,7 @@
 # There is NO WARRANTY, to the extent permitted by law.
 #
 
-package drib::dist::drib;
+package drib::dist::dribit;
 
 # what we need
 use HTTP::Request;
