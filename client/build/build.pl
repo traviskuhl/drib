@@ -44,6 +44,9 @@ if ( -e "./tar/$name" ) {
 	# get the build version from the changelog
 	$version = `egrep -m 1 "Version [0-9\.]+" ../pkg/changelog | sed 's/Version //'`; chomp($version);
 	
+	# rename
+	`mv $pwd/pkg/$name drib-$version.tar.gz`;
+	
 	# name of build
 	$name = "drib-".$version.".tar";
 	
