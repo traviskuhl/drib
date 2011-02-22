@@ -1,3 +1,7 @@
+Version 0.7.6
+* updated build & deopy options
+* fixed missing version in changelog file after dist update
+
 Version 0.7.5
 * fixed dist new version bug
 * fixed dist prompt flow
