@@ -301,7 +301,7 @@ sub dist {
 		}	
 		
 	# tell them what's up
-	msg("Preparing Dist Process:");
+	msg("Preparing to Dist $man->{meta}->{name}:");
 	
 	# repo
 	my $repo = $opts->{repo};
@@ -342,16 +342,27 @@ sub dist {
 			
 		}
 		
-	# we're going to need their password
-	my $pword = ask(" Password for ".$self->{db}->get($repo)->{name}.":", 1);
+	# dist
+	my $dist;
 		
-	# connect to our repo
-	my $dist = $self->init($repo, $pword);		
-	
-		# has code
-		if ( defined $dist->{code} ) {
-			fail("Could not connect to dist module");
-		}
+	# has this dist already been created
+	unless ( exists($self->{clients}->{$repo}) ) {
+			
+		# we're going to need their password
+		my $pword = ask(" Password for ".$self->{db}->get($repo)->{name}.":", 1);
+			
+		# connect to our repo
+		$dist = $self->init($repo, $pword);		
+		
+			# has code
+			if ( defined $dist->{code} ) {
+				fail("Could not connect to dist module");
+			}
+			
+	}
+	else {
+		$dist = $self->{clients}->{$repo};
+	}
 			
 	# branch
 	my $branch = $opts->{branch} || 'current';
@@ -426,7 +437,7 @@ sub dist {
 					}
 
 				# append our new stuff
-				my $nf = "Version $v\n$c\n\n". file_get($man->{ov});
+				my $nf = "Version $version\n$c\n\n". file_get($man->{ov});
 
 				# save it 
 				file_put("$tmp/changelog", $nf);	# to package

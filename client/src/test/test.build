@@ -1,25 +1,36 @@
-
-# build name
-$name = "test_qa";
-
-# branch
-$branch = "qa";
-$type = "qa";
-
-# packages
-$packages = [
-	{ 	
-		"pkg" => "./test.pkg",
-		'set' => {
-		
-		}
-	}
-];
-
-# install
-$install = [
-	{
-		"host" => "qa1.corp.dailyd.com:929",
-		"packages" => "all"
-	}
-];
+{
+    "name": "test",
+    "build": {
+        "all": [
+            {
+                "pkg": "test.dpf" 
+            },
+            {
+                "pkg": "test2.dpf" 
+            } 
+        ],
+        "test1": [
+        	{ 
+        		"pkg": "test.dpf"
+        	}
+        ]
+    },
+    "deploy": {
+    	"test": {
+    		"build": ["all"],
+    		"hosts": [
+    			{ "host": "test.dev.kuhl.co" }
+    		],
+    		"process": [
+    			{"cmd": "@build"}    		
+    		],
+    		"set": [
+    			{
+    				"pkg":"drib/test",
+    				"name": "hello",
+    				"value": "world"
+    			}	    		
+    		]
+    	}    
+    }
+}

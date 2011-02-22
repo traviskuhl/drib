@@ -47,9 +47,8 @@ sub new {
 			{ 
 				'name' => 'deply',
 				'help' => '', 
-				'alias' => ['de','d'],
+				'alias' => ['de'],
 				'options' => [
-					Param('target|t'),
 				]
 			}
 		]
@@ -69,5 +68,73 @@ sub run {
 	# get some stuff
 	my ($self, $cmd, $opts) = @_;
 	
+	# args
+	my @args = @{$self->{drib}->{args}};	
+	
+	# messages
+	my @msg = ();		
+		
+	if ( $cmd eq "build" ) {
+		
+		# file
+		$file = shift @args;
+		
+			# make sure it's a file
+			unless ( -e $file ) {
+				return {
+					"message" => "Build file not valid",
+					"code" => 400
+				};
+			}
+		
+		# run each build
+		push(@msg, $self->deploy($file, \@args, $opts)->{message});
+		
+	}
+
+	# return to the parent with a general message
+	return {
+		'message' => join("\n", @msg),
+		'code' => 0
+	};		
+	
+}
+
+
+##
+## @brief deploy a given build
+##
+## @param $file build file
+## @param $targets named targets to execute
+## @param $opts builds options
+##
+sub deploy {
+
+	# get manifest
+	my ($self, $file, $targets, $opts) = @_;
+	
+	# open the build manifest and parse
+	my $m = from_json( file_get($file) );
+		
+	# check for a build cmd
+	unless ( $m->{deploy} ) {
+		return {
+			"message" => "No deploy instructions in $man",
+			"code" => 404
+		};
+	}
+	
+	# build
+	my $deploy = $m->{deploy};
+	
+	# make sure the targets they listed 
+	# are really good targets and that
+	# there's at least one
+	if ( scalar(@{$targets}) == 0 ) {
+		return {
+			"message" => "No targets given",
+			"code" => 400
+		};
+	}
 	
 }

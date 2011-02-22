@@ -41,7 +41,6 @@ sub new {
 		
 		# dbs
 		'db' => new Drib::Db('config',$drib->{var}),		# load the db
-		'mdb' => new Drib::Db('manifests',$drib->{var}),	# load the manifest db
 		
 		# commands
 		'commands' => [
@@ -52,13 +51,6 @@ sub new {
 				'options' => [
 					Switch('unset|u')
 				]
-			},
-			{
-				'name' => 'manifest',
-				'help' => '',
-				'alias' => ['ls-manifest', 'ls-manifests', 'list-manifest', 'add-manifest', 'rm-manifest', 'up-manifest'],
-				'options' => []
-			
 			}
 		]		
 	};
@@ -83,94 +75,9 @@ sub run {
 	
 	# args
 	my @args = @{$self->{drib}->{args}};
-	
-	# manifest commands
-	if ( $cmd eq 'manifest' ) {
-	
-		# things to watch for arg1
-		my @a1 = ('add', 'ls', 'rm', 'up', 'list');
-		
-		# the orignal command without aliased
-		my $oc = $self->{drib}->{cmd};	
-	
-			# check me out
-			if ( scalar @args > 0 && in_array(\@a1, $args[0]) ) {
-				$oc = (shift @args)."-manifest"; 
-			}
-		
-		# add a manifest
-		if ( $oc eq "add-manifest" || $oc eq 'update-manifest' ) {
-			return $self->addManifest( shift(@{$self->{drib}->{args}}) );
-		}
-		
-		# list all manifests
-		elsif ( $oc eq 'ls-manifest' || $oc eq 'ls-manifests' || $oc eq 'list-manifest' ) {
-			
-			# all
-			my %all = %{$self->{mdb}->all()};
-			
-			# add a manifest
-			foreach my $item ( keys %all ) {
-				if ( $all{$item} ) {
-					msg(" $item");			
-				}
-			}
-		
-			exit();
-		
-		}	
-
-		# remove a manifest			
-		elsif ( $oc eq 'rm-manifest' ) {
-		
-			# remove it 
-			$self->{mdb}->unset( shift @{$self->{drib}->{args}} );
-		
-			return {
-				"message" => "Manifest removed",
-				"code" => 200
-			}
-		
-		}			
-		elsif ( scalar @{$self->{drib}->{args}} == 1 ) {
-		
-			# get the manifest
-			my $man = $self->{mdb}->get($self->{drib}->{args}[0]);
-			
-				# not a good manifest
-				unless ($man) {
-					return {
-						"message" => "Unknown manifest",
-						"code" => 404
-					};
-				}
-			
-			# show it 
-			my $j = new JSON;
-			
-			# print print and indent
-			$j->pretty(1)->indent;
-			$j->space_after(1);
-			$j->space_before(0);
-		
-			# encode and print
-			print $j->encode($man);
-			
-			# exit out
-			exit();
-		
-		}
-		else {
-			return {
-				"message" => "Unknown manifest command",
-				"code" => 400
-			};
-		}
-	
-	}
 
 	# normal config
-	elsif ( scalar @{$self->{drib}->{args}} >= 1 ) {
+	if ( scalar @{$self->{drib}->{args}} >= 1 ) {
 	
 		# msg
 		my @msg = ();

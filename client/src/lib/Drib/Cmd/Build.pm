@@ -56,7 +56,7 @@ sub new {
 					Switch('cleanup|c'),
 					Param('type|t')					
 				]
-			}		
+			}				
 		]
 		
 	};
@@ -80,11 +80,21 @@ sub run {
 	# messages
 	my @msg = ();		
 		
-	# build
 	if ( $cmd eq "build" ) {
 		
+		# file
+		$file = shift @args;
+		
+			# make sure it's a file
+			unless ( -e $file ) {
+				return {
+					"message" => "Build file not valid",
+					"code" => 400
+				};
+			}
+		
 		# run each build
-		push(@msg, $self->build(shift @args, $opts)->{message});
+		push(@msg, $self->build($file, \@args, $opts)->{message});
 		
 	}
 
@@ -100,30 +110,18 @@ sub run {
 ##
 ## @brief build a given manifest
 ##
-## @param $man manifest name
+## @param $file build file
+## @param @builds named builds to execute
+## @param $opts builds options
 ##
 sub build {
 
 	# get manifest
-	my ($self, $man, $opts) = @_;
-
-	# args
-	my @args = @{$self->{drib}->{args}};
+	my ($self, $file, $builds, $opts) = @_;
 	
-		# shift off args
-		shift @args;
-
-	# get the manifest
-	my $m = $self->{drib}->{modules}->{Config}->{mdb}->get($man);
-
-	# make sure the manifest exists
-	unless ( $m ) {
-		return {
-			"message" => "No manifest $man",
-			"code" => 404
-		};
-	}	
-	
+	# open the build manifest and parse
+	my $m = from_json( file_get($file) );
+		
 	# check for a build cmd
 	unless ( $m->{build} ) {
 		return {
@@ -150,7 +148,7 @@ sub build {
 	}
 	
 	# builds
-	my %builds = %{$build};
+	my %builds = %{$build};	
 	
 	# loop through each and build and install
 	foreach my $key ( keys %builds ) {
@@ -159,7 +157,7 @@ sub build {
 		if ( substr($key,0,1) eq "_" ) { next; }
 		
 		# do we have a list of builds
-		if ( scalar @args == 1 && in_array(\@args, $key) == 0 ) { next; }
+		if ( scalar(@{$builds}) > 0 && in_array(\@{$builds}, $key) == 0 ) { next; }
 		
 		# loop through and install each package
 		foreach my $pkg ( @{$builds{$key}} ) {
