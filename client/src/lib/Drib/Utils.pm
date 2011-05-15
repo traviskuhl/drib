@@ -21,6 +21,7 @@ our @EXPORT = qw(
 	search_dir
 	trim
 	ws_trim
+	wslb_trim
 	file_get
 	file_put
 	fail
@@ -60,6 +61,13 @@ sub trim {
     	$string =~ s/^\///;
     }
     $string =~ s/\/$//;
+	return $string;	
+}
+
+sub wslb_trim {
+	my $string = shift;
+	$string =~ s/^\s+|\n+//;
+    $string =~ s/\s|\n$//;
 	return $string;	
 }
 

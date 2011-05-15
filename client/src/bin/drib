@@ -218,16 +218,58 @@ sub setArgs {
 ##
 sub help {
 
-#msg	
-my $msg = qq|drib $VERSION
-Copyright (c) Travis Kuhl 2009-10\
+	# self
+	my $self = shift;
 
-This is free software.  You may redistribute copies of it under the terms of
-the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
-There is NO WARRANTY, to the extent permitted by law.|;
+	# sub
+	my $sub = shift(@{$self->{args}});
 
-# msg
-msg($msg);
+	# is there a cmd 
+	if ( $sub ) {
+	
+		# load the cmd
+		my $c = $self->{commands}->{$sub};
+	
+		# options
+		my $o = Getopt::Lucid->getopt(\@{$c->{options}});
+		
+		# spec
+		my $spec = $o->{spec};
+	
+		# print the usage
+		msg("$c->{name} -- $c->{help}->{text}");
+		msg("Usage: $c->{help}->{usage}");
+		msg("Options");
+		
+		# loop for it
+		foreach my $k (keys %{$c->{help}->{options}}) {
+			msg(sprintf(" %-15s %-100s", $spec->{$k}->{name}, $c->{help}->{options}->{$k}));
+		}
+		
+		# done
+		exit;
+	
+	}
+	else {
+	
+		# year
+		my $year = strftime "%y", localtime;
+		
+		# make our req
+		my $version = `curl -Is http://drib-pdm.org/download/stable`;
+		   $version =~ /drib-([0-9\.]+)\./;
+		
+		# help msg
+		msg("drib $VERSION");
+		msg("Copyright (c) Travis Kuhl 2009-$year\n");
+		msg("This is free software.  You may redistribute copies of it under the terms of");
+		msg("the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.");
+		msg("There is NO WARRANTY, to the extent permitted by law.\n");
+		msg(("="x60));
+		msg("Latest Version: $1" . (versioncmp($VERSION,$1)?" Update Avaliable (`drib self-update`)":"") );
+		msg(("="x60));
+		exit;
+	}
 
 }
 

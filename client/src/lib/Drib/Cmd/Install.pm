@@ -49,7 +49,19 @@ sub new {
 		'commands' => [
 			{ 
 				'name' => 'install',
-				'help' => '', 
+				'help' => {
+					'text' => "Install a package from a given repo", 					
+					'usage' => "drib install {repo}:{project}/{package}-{version|branch}",
+					'options' => {
+						'project' => "Name of project",
+						'cleanup' => "Delete any created packages after installed",
+						'version' => "Install given package version",
+						'branch' => "Install package from given branch",
+						'same' => "Override the same version conflict",
+						'downgrade' => "Override downgrade conflict",
+						'repo' => "Install package from given repository"
+					}
+				},
 				'alias' => ['i','in'],
 				'options' => [
 					Param('project|p'),
@@ -58,7 +70,6 @@ sub new {
 					Param('branch|b'),
 					Switch('same|s'),
 					Switch('downgrade|d'),
-					Switch('depend|dep'),
 					Param('repo|r')
 				]
 			},

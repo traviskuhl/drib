@@ -17,9 +17,10 @@
     },
     "deploy": {
     	"test": {
+    		"useMasterPassword": 1,
     		"build": ["all"],
     		"hosts": [
-    			{ "host": "test.dev.kuhl.co" }
+    			{ "host": "173.255.223.206", "port": 929 }
     		],
     		"process": [
     			{"cmd": "@build"}    		

@@ -47,7 +47,7 @@ static void *create_env_dir_config(apr_pool_t *p, char *dummy) {
 	
 	// try reading the file
 	// if we can't just return OK
-    if ( apr_file_open(&fp,"/usr/var/drib/settings.txt", APR_READ|APR_BUFFERED, APR_OS_DEFAULT,p) != APR_SUCCESS ) {
+    if ( apr_file_open(&fp,"/var/drib/settings.txt", APR_READ|APR_BUFFERED, APR_OS_DEFAULT,p) != APR_SUCCESS ) {
 		return 0;
     }
 

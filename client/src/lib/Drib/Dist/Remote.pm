@@ -160,13 +160,13 @@ sub upload {
 	my $file = $folder . "/" . $pkg . "-" . $version . ".tar.gz";
 	
 		# try to get it 
-		$resp = $self->{ssh}->scp($tmp, $self->{host}.":".$file);
+		$resp = $self->{ssh}->scp($tmp, $file);
 							
 	# bracnh fiuel
 	$br = $folder . "/" . $pkg . "-" . $branch . ".tar.gz";				
 								
 		# set in branch
-		$resp = $self->{ssh}->scp($tmp, $self->{host}.":".$br);
+		$resp = $self->{ssh}->scp($tmp, $br);
 					
 	`rm $tmp`;		
 

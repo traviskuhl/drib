@@ -21,6 +21,7 @@ use POSIX;
 use Data::Dumper;
 use Net::SSH::Expect;
 use Net::SCP::Expect;
+use Net::OpenSSH;
 
 # drib
 use Drib::Utils;
@@ -28,7 +29,7 @@ use Drib::Utils;
 sub new {
 
 	# get some
-	my ($ref, $drib, $host, $port, $pword) = @_;
+	my ($ref, $drib, $host, $port, $pword, $user) = @_;
 
 	# get myself
 	my $self = {
@@ -37,7 +38,7 @@ sub new {
 		'drib' => $drib,
 		
 		# host and port
-		'user' => $ENV{'SUDO_USER'},
+		'user' => $user || $ENV{'SUDO_USER'},
 		'pass' => "",
 		'host' => $host,
 		'port' => $port,
@@ -60,6 +61,16 @@ sub new {
 
 }
 
+sub DESTROY {
+
+	# who am i
+	my $self = shift;
+	
+	# close 
+	$self->exec("exit;");
+	
+}
+
 # connect to dist
 sub connect {
 	
@@ -68,37 +79,50 @@ sub connect {
 
 	if ( $self->{_ssh} ) { return; }
 	
-	# !pass
-	unless ( $self->{pass} ) {
-		$self->{pass} = ask("Password:",1);
-	}
+	# opts
+	my %opts = (
+		host => $self->{host},
+		user => $self->{user},
+		password => $self->{pass},
+		port => $self->{port},
+		strict_mode => 0,
+		master_stdout_discard => 1,
+		master_opts => [-o => "StrictHostKeyChecking no"]
+	);	
 	
-	# pass
-	my $pass = $self->{pass};
+	# ssh 	
+	my $ssh = 0;
+		
+	# try password again
+	for ( my $i = 0; $i < 3; $i++ ) {
 
-	# connect
-	my $ssh = Net::SSH::Expect->new (
-		host		=> $self->{host}, 
-		port		=> $self->{port},
-		password	=> $pass, 
-		user		=> $self->{user}, 
-		raw_pty		=> 1
-	);
+		# !pass
+		unless ( $self->{pass} ) {
+			$self->{pass} = ask("Password:",1);
+		}
+		
+		# set it 
+		$opts{'password'} = $self->{pass};
+		
+		# ssh 
+		$ssh = Net::OpenSSH->new(%opts);
 
-	# login
-	my $o = $ssh->login();
-              
-		# bad password  
-        if ($o =~ /Permission denied/) {
-            fail("Incorrect Password!");
-        }
+		# error or end
+		if ( $ssh->error ) { 
+			$ssh = 0; $self->{pass} = 0; next;
+		}
+		else {
+			break;
+		}
+
+	}
+
+	# no ssh
+	if ( $ssh == 0 ) { fail("Incorrect Password"); }
 
 	# save it 
 	$self->{_ssh} = $ssh;
 
-	# connect to scp also
-	$self->{_scp} = new Net::SCP::Expect(host=>$self->{host}, port=>$self->{port}, 'user'=>$self->{user}, password=>$pass, auto_yes=>1, no_check=>1);
-	
 	# return
 	return $ssh;
 
@@ -108,13 +132,54 @@ sub connect {
 sub exec {
 
 	# get oit 
-	my ($self, $cmd) = @_;
+	my ($self, $cmd) = @_;	
+
+	# are they trying to run sudo
+	if ( $cmd =~ /^sudo/i ) {
+			
+		# send to sudo
+		my ( $pty, $pid ) = $self->{_ssh}->open2pty({stderr_to_stdout => 1},"sudo -k; " .$cmd) or return "failed to attempt sudo bash: $!\n";
 	
-	# connect
-	$self->connect($host, $port);
+		# expect
+		my $e = Expect->init($pty);	
+		
+		# all raw
+		$e->raw_pty(1);
+			
+		# password?
+		my @r1 = $e->expect(1, ":", "-re", "/password/i") or "expect fail";
+	
+			# send password
+			$e->send($self->{pass}."\n");
+			
+		# password is good
+		my @r = $e->expect(1, "#", "-re", "/.*#\s+/") or fail("Bad Password");
+	
+	 	# done
+	 	$e->hard_close();
+	 	
+	 	# close it
+	 	close $pty;
+
+		# done
+		return wslb_trim(($r[3] ne "" ? $r[3] : $r[1]));
+
+	}
+	else {
+		my($out, $err) = $self->{_ssh}->capture2($cmd);
+		return wslb_trim(($out ne "" ? $out : $err));
+	}
+
+}
+
+# test
+sub test {
+
+	# get oit 
+	my ($self, $cmd) = @_;	
 
 	# run exex
-	return $self->{_ssh}->exec($cmd);
+	return $self->{_ssh}->test($cmd);
 
 }
 
@@ -125,7 +190,17 @@ sub scp {
 	my ($self, $local, $remote) = @_;
 
 	# do it 
-	return $self->{_scp}->scp($local, $remote);
+	return $self->{_ssh}->scp_put({stderr_discard=>1}, $local, $remote);
+
+}
+
+sub scp_get {
+
+	# get 
+	my ($self, $local, $remote) = @_;
+
+	# do it 
+	return $self->{_scp}->scp_get($local, $remote);
 
 }
 

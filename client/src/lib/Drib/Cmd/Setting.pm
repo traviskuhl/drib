@@ -313,21 +313,10 @@ sub list {
     
 	# first cmd
 	if ( $pid ) {
-			
-		# prase
-		my $pkg = $self->{drib}->parsePackageName( $name );
 		
-		# set it 
-		if ( $pkg->{pid} ) {
-		
-			# set packages
-			$packages = { $pkg->{pid} => $self->{drib}->{packages}->get($pkg->{pid}) };
-			
-			# set pid
-			$pid = $pkg->{pid};
+		# set packages
+		$packages = { $pid => $self->{drib}->{packages}->get($pid) };
 	
-		}
-		
 	}
 	
 	# need to get packages
