@@ -39,6 +39,64 @@ For more information about a command, run `drib help <command>`
 # Contribute
 Feel free to fork and hack away. [How to submit your patches](http://drib-pdm.org/contribute)
 
+# Examples
+
+## Install a Package
+	drib install project/package
+	drib install project/package-current
+	drib install project/package -br test
+	
+## Create a Package
+	drib create package.dpf
+	
+## Create & Install a Symlinked Package
+	drib create package.dpf --type=symlink --install --cleanup
+	
+## Execute a Build File
+	drib build project.build
+	
+## Deploy a Build File
+	drib deploy project.build
+
+## Example Package File
+	# fe.dpf -- 2010-05-14		
+	
+	# internal variables
+	src = ../src
+	htdocs = /home/bolt/share/htdocs/demo/fe
+	assets = /home/bolt/share/htdocs/assets/demo/fe
+	conf = /home/bolt/conf/httpd/
+	
+	# meta data
+	meta project = demo
+	meta name = fe
+	meta version = file:./changelog
+	meta summary = Demo FrontEnd Package
+	meta description = Demo FrontEnd Package
+	meta changelog = ./changelog
+	
+	# settings
+	set host waroftruth.com
+	set port 80
+	
+	# directorys
+	dir - - - $(htdocs)
+	dir - - - $(assets)
+	
+	# assets
+	find - - - $(assets) $(src)/assets/ -depth -name "*.*"
+	
+	# pear
+	find - - - $(htdocs)	$(src)/ -depth -name "*.php" 
+	
+	
+	# set our conf file
+	settings $(conf)	../conf/demo_fe.conf
+	
+	# post install
+	command post-install /etc/init.d/httpd restart
+	command post-set /etc/init.d/httpd restart
+
 # Get Help
 * IRC: [#dribpdm](irc://irc.oftc.net/#dribpdm)
 * Mailing List: [drib-pdm@googlegroups.com](http://groups.google.com/group/drib-pdm)
