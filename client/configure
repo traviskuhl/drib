@@ -21,8 +21,7 @@ my @depend = (
 	"Digest::MD5",
 	"JSON",
 	"HTTP::Request",
-	"Net::SSH::Expect",
-	"Net::SCP::Expect",
+	"Net::OpenSSH",
 	"Getopt::Lucid",
 	
 	#"Crypt::CBC",	# will be used later
