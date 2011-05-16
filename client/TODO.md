@@ -1,3 +1,6 @@
+# TODO
+
+- **better documentation**
 - finish deploy module
 - add verbose messaging for install & create
 - add better error checking on install & create
@@ -8,3 +11,4 @@
 - implement secure packages
 - add support for --host arg on install, un/set, config & command using remote module
 - cleanup and add better support of API
+

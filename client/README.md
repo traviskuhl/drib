@@ -5,6 +5,8 @@ open source packaging and deployment manager
 * Perl v5.8.8
 * CPAN module
 
+_drib has only been tested on Centos 5.6 & Fedora 14_
+
 # Usage: 
 	drib [options] command [sub-command] [command-options]
 
@@ -104,7 +106,7 @@ Feel free to fork and hack away. [How to submit your patches](http://drib-pdm.or
 	command post-set /etc/init.d/httpd restart
 
 # Get Help
-* IRC: [#dribpdm](irc://irc.oftc.net/#dribpdm)
+* IRC: [#dribpdm](irc://irc.oftc.net/#dribpdm) - irc://irc.oftc.net/#dribpdm
 * Mailing List: [drib-pdm@googlegroups.com](http://groups.google.com/group/drib-pdm)
 * Bugs: [github issues](https://github.com/traviskuhl/drib/issues)
 
