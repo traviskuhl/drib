@@ -42,21 +42,21 @@ Feel free to fork and hack away. [How to submit your patches](http://drib-pdm.or
 # Examples
 
 **Install a Package**
- * `drib install project/package`
- * `drib install project/package-current`
- * `drib install project/package -br test`
+* `drib install project/package`
+* `drib install project/package-current`
+* `drib install project/package -br test`
 	
 **Create a Package**
- * `drib create package.dpf`
+* `drib create package.dpf`
 	
 **Create & Install a Symlinked Package**
- * `drib create package.dpf --type=symlink --install --cleanup`
+* `drib create package.dpf --type=symlink --install --cleanup`
 	
-*Execute a Build File**
- * `drib build project.build`
+**Execute a Build File**
+* `drib build project.build`
 	
 **Deploy a Build File**
- * `drib deploy project.build`
+* `drib deploy project.build`
 
 **Example Package File**
 	# fe.dpf -- 2010-05-14		
