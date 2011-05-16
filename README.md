@@ -1,8 +1,10 @@
 # drib
 packaging and distribution platform for web developers
 
-**Client**
-[The main drib package](https://github.com/traviskuhl/drib/tree/rc1/client)
+## [Client](https://github.com/traviskuhl/drib/tree/rc1/client)
+The main drib package
 
-**Apache**
-[Apache modules to import drib settings to apache env](https://github.com/traviskuhl/drib/tree/rc1/apache)
+## Plugins
+Plugins to integrate drib with other stuff
+
+* [Apache module](https://github.com/traviskuhl/drib/tree/rc1/plugins/apache) - imports drib settings to apache env
