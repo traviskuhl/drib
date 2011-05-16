@@ -1,3 +1,7 @@
+Version 0.7.7
+* switched to Net::OpenSSH for remote connections
+* updated deopy script
+
 Version 0.7.6
 * updated build & deopy options
 * fixed missing version in changelog file after dist update
