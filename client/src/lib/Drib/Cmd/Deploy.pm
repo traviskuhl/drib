@@ -49,7 +49,7 @@ sub new {
 				'help' => '', 
 				'alias' => ['de'],
 				'options' => [
-					
+					Switch('build|b'),	
 				]
 			}
 		]
@@ -139,6 +139,13 @@ sub deploy {
 		if ( $man->{useMasterPassword} ) {
 			$pass = ask("Master Password:", 1);
 		}				
+
+		# figure out what needs to be built
+		if ( $opts->{build} == 1 && @{$man->{build}} > 0 ) {
+
+			# send off all the 
+
+		}
 		
 		# tmp
 		my $tmp = $self->{tmp} . "/" . rand_str(5);
@@ -153,6 +160,7 @@ sub deploy {
 		# and scp our manifest
 		foreach my $host ( @{$man->{hosts}} ) {			
 			
+			# start
 			msg("staritng $host->{host}");
 			msg(("="x50));
 			
