@@ -49,6 +49,10 @@ Feel free to fork and hack away. [How to submit your patches](http://drib-pdm.or
 	drib install project/package-current
 	drib install project/package -br test
 	
+**Install to a Remote Server**
+
+	drib install project/package --host="remote.server.com:99"
+
 **Create a Package**
 	
 	drib create package.dpf
