@@ -150,10 +150,23 @@ sub exec {
 		my @r1 = $e->expect(1, ":", "-re", "/password/i") or "expect fail";
 	
 			# send password
-			$e->send($self->{pass}."\n");
+			$e->send($self->{pass}."\n");	
 			
 		# password is good
-		my @r = $e->expect(1, "#", "-re", "/.*#\s+/") or fail("Bad Password");
+		my @r = $e->expect(10, "#", "-re", "/.*#\s+/") or fail("Bad Password");
+	
+			# another password
+			if ( $r[3] =~ /password/i ) {
+			
+				# send 
+				$e->send($self->{pass}."\n");
+
+				# resp
+				@r = $e->expect(10, "#", "-re", "/.*#\s+/") or fail("Bad Password");
+		
+			}
+	
+		print Dumper(@r1, @r); die;
 	
 	 	# done
 	 	$e->hard_close();
@@ -197,10 +210,10 @@ sub scp {
 sub scp_get {
 
 	# get 
-	my ($self, $local, $remote) = @_;
+	my ($self, $remote, $local) = @_;
 
 	# do it 
-	return $self->{_scp}->scp_get($local, $remote);
+	return $self->{_ssh}->scp_get($remote, $local);
 
 }
 

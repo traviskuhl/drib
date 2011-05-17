@@ -1,6 +1,7 @@
 # TODO
 
 - **better documentation**
+- add support for SSH keys along with passwords
 - finish deploy module
 - add verbose messaging for install & create
 - add better error checking on install & create
@@ -9,6 +10,6 @@
 - add json parser 
 - re-implement external repositories; cpan, pear, pecl, yum, rpm
 - implement secure packages
-- add support for --host arg on install, un/set, config & command using remote module
-- cleanup and add better support of API
+- cleanup and add better support for plugin API
+
 

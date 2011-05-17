@@ -129,9 +129,73 @@ sub run {
 	$self->setArgs([@_argv]);
 	
 	# save the cmd
-	$self->{cmd} = $cmd;
+	$self->{cmd} = $cmd;		
+	
+	# what command ran
+	my $cli = $ENV{'SUDO_COMMAND'};
 	
 	# see the cmd exists
+	if ( $cli =~ /host=([^\s]+)/i ) {
+			
+		# they have a host
+		# make sure the command isn't create
+		if ( $cmd eq "create" ) {
+			fail("Create command can't be run on remote host");
+		}
+		
+		# c 
+		my $c = $self->{commands}->{$cmd};
+		
+		# opt
+		my @opts = @{$c->{options}};
+		
+			# push in host
+			push(@opts, Param('host'));
+		
+		# options
+		my $o = Getopt::Lucid->getopt(\@opts);		
+		
+		# args
+		my @args = ();
+		
+		# options		
+		my %oo = $o->options();
+			
+		 	foreach my $key ( keys %oo ) {
+ 				if ( $oo{$key} && $key ne "host" ) {
+ 					push(@args, "--$key=$oo{$key}");
+ 				}
+ 			} 			
+		
+		# rebuild their command
+		my $cli = join(" ", @ARGV) . " " . join(" ", @args);
+		
+		# host 
+		my ($host, $port) = split(/:/, $o->get_host);
+		
+		# message
+		my $msg = "Running `".ws_trim($cli)."` on remote host $host:";
+	
+		# tell them what we're doing
+		msg($msg);
+		msg(("=" x length($msg)));
+		
+		# connect to remove
+		my $r = new Drib::Remote($self->{drib}, $host, ($port || 22));
+		
+		# run the command
+		print $r->exec("sudo $0 " . $cli, 1);
+
+		# end message
+		msg(("=" x length($msg)));
+		msg("Complete");
+		
+		# stop
+		exit;
+	
+	}	
+
+	
 	if ( exists $self->{commands}->{$cmd} ) {
 		
 		# not help need root
@@ -143,7 +207,7 @@ sub run {
 		my $c = $self->{commands}->{$cmd};
 		
 		# options
-		my $o = $opt = Getopt::Lucid->getopt(\@{$c->{options}});	
+		my $o = $opt = Getopt::Lucid->getopt(\@{$c->{options}});
 		
 		# run it
 		my $resp = $self->{modules}->{$c->{module}}->run($c->{name}, {$o->options});

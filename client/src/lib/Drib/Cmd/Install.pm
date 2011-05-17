@@ -280,6 +280,11 @@ sub install {
     	# ok so we now have it 
     	# so lets get the file
     	$file = $dist->get($repo, $project, $pkg, $version);    
+    	
+    		# no file
+    		unless ( $file ) {
+    			fail("Could not get file from dist");
+    		}
     
     	# unpack
     	my $r = $self->{drib}->unpackPackageFile($file);

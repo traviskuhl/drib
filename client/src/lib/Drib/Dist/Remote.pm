@@ -107,7 +107,7 @@ sub get {
 	my $tmp = $self->{drib}->{tmp} ."/" . rand_str(5);
 	
 	# try to get it 
-	$resp = $self->{ssh}->scp($self->{host}.":".$file,$tmp);
+	my $resp = $self->{ssh}->scp_get($file, $tmp);
 	
 	# bad reso
 	if ( $resp == 0 ) {
