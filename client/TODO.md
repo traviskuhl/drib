@@ -1,7 +1,7 @@
 # TODO
 
 - **better documentation**
-- add support for SSH keys along with passwords
+- add support for SSH keys
 - finish deploy module
 - add verbose messaging for install & create
 - add better error checking on install & create
@@ -11,5 +11,4 @@
 - re-implement external repositories; cpan, pear, pecl, yum, rpm
 - implement secure packages
 - cleanup and add better support for plugin API
-
-
+- pipe messages form remote to STDOUT 

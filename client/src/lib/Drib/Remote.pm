@@ -166,8 +166,6 @@ sub exec {
 		
 			}
 	
-		print Dumper(@r1, @r); die;
-	
 	 	# done
 	 	$e->hard_close();
 	 	

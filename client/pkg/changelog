@@ -1,3 +1,12 @@
+Version 0.7.9
+* fixed the --version flag 
+* remote module cleanup
+
+Version 0.7.8
+* fixed scp_get call in Remote
+* fixed get command in Dist::Remote
+* added --host support in drib->run
+
 Version 0.7.7
 * switched to Net::OpenSSH for remote connections
 * updated deopy script

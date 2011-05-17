@@ -344,7 +344,7 @@ sub version {
 	my $version = `curl -Is http://drib-pdm.org/download/stable`;
 	   $version =~ /drib-([0-9\.]+)\./;	
 	
-	if ( versioncmp($VERSION,$1) ) {
+	if ( versioncmp($1,$VERSION) > 0  ) {
 		
 		msg(("="x60));
 		msg("New Version Available: $1 (`drib self-update`)");
