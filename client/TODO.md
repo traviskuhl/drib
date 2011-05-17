@@ -12,3 +12,4 @@
 - implement secure packages
 - cleanup and add better support for plugin API
 - pipe messages form remote to STDOUT 
+- make less spelling mistakes
