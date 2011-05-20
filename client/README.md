@@ -66,8 +66,10 @@ Feel free to fork and hack away. [How to submit your patches](http://drib-pdm.or
 	drib build project.build
 	
 **Deploy a Build File**
+_coming soon_
 	
 	drib deploy project.build
+
 
 **Example Package File**
 
