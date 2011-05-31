@@ -10,6 +10,7 @@
 - add json parser 
 - re-implement external repositories; cpan, pear, pecl, yum, rpm
 - implement secure packages
+- better command support
 - cleanup and add better support for plugin API
 - pipe messages form remote to STDOUT 
 - make less spelling mistakes

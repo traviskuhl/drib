@@ -135,7 +135,7 @@ sub run {
 	my $cli = $ENV{'SUDO_COMMAND'};
 	
 	# see the cmd exists
-	if ( $cli =~ /host=([^\s]+)/i ) {
+	if ( $cli =~ /\-\-host=([^\s]+)/i ) {
 			
 		# they have a host
 		# make sure the command isn't create
