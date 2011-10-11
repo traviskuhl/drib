@@ -23,6 +23,8 @@ my @depend = (
 	"HTTP::Request",
 	"Net::OpenSSH",
 	"Getopt::Lucid",
+	"Net::SSH::Expect",
+	"Net::SCP::Expect"
 	
 	#"Crypt::CBC",	# will be used later
 );
