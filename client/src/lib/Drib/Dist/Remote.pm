@@ -38,6 +38,7 @@ sub new {
 		'port'		=> $config->{port} || 22,
 		'folder' 	=> trim($config->{folder})."/",
 		'key'		=> $config->{key},
+		'username'	=> $config->{username} || 0
 		
 		# some params we need
 		'ssh'		=> 0,
@@ -64,7 +65,7 @@ sub connect {
 	}
 
 	# ssh
-	$self->{ssh} = $self->{drib}->{remote}->new($self->{drib}, $self->{host}, $self->{port}, $pword, "", $self->{key});
+	$self->{ssh} = $self->{drib}->{remote}->new($self->{drib}, $self->{host}, $self->{port}, $pword, $self->{username}, $self->{key});
 
 }
 
