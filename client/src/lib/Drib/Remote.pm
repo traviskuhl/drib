@@ -29,7 +29,7 @@ use Drib::Utils;
 sub new {
 
 	# get some
-	my ($ref, $drib, $host, $port, $pword, $user) = @_;
+	my ($ref, $drib, $host, $port, $pword, $user, $key) = @_;
 
 	# get myself
 	my $self = {
@@ -43,6 +43,7 @@ sub new {
 		'host' => $host,
 		'port' => $port,
 		'pass' => $pword || 0,
+		'key'  => $key,
 			
 		# connection
 		'_ssh' => 0,
@@ -83,42 +84,67 @@ sub connect {
 	my %opts = (
 		host => $self->{host},
 		user => $self->{user},
-		password => $self->{pass},
 		port => $self->{port},
 		strict_mode => 0,
 		master_stdout_discard => 1,
 		master_opts => [-o => "StrictHostKeyChecking no"]
 	);	
-	
+		
 	# ssh 	
 	my $ssh = 0;
-		
-	# try password again
-	for ( my $i = 0; $i < 3; $i++ ) {
+	
+	# if we have a key
+	# do it that way
+	if ($self->{key}) {
+	
+		# key
+		$opts{'key_path'} = $self->{key};
+		$opts{'passphrase'} = "finger82";
 
-		# !pass
-		unless ( $self->{pass} ) {
-			$self->{pass} = ask("Password:",1);
-		}
-		
-		# set it 
-		$opts{'password'} = $self->{pass};
-		
 		# ssh 
 		$ssh = Net::OpenSSH->new(%opts);
 
 		# error or end
 		if ( $ssh->error ) { 
-			$ssh = 0; $self->{pass} = 0; next;
+			$ssh = 0;
 		}
-		else {
-			break;
+	
+	}
+	
+	# if we don't have a key try the password
+	else {
+	
+		# password
+		$opts{'password'} = $self->{pass};
+			
+		# try password again
+		for ( my $i = 0; $i < 3; $i++ ) {
+	
+			# !pass
+			unless ( $self->{pass} ) {
+				$self->{pass} = ask("Password:",1);
+			}
+			
+			# set it 
+			$opts{'password'} = $self->{pass};
+			
+			# ssh 
+			$ssh = Net::OpenSSH->new(%opts);
+	
+			# error or end
+			if ( $ssh->error ) { 
+				$ssh = 0; $self->{pass} = 0; next;
+			}
+			else {
+				break;
+			}
+	
 		}
-
+		
 	}
 
 	# no ssh
-	if ( $ssh == 0 ) { fail("Incorrect Password"); }
+	if ( $ssh == 0 ) { fail("Incorrect Password or Key"); }
 
 	# save it 
 	$self->{_ssh} = $ssh;

@@ -584,15 +584,14 @@ sub parsePackageName {
         $project = 'default';
     }
     
+    # no repo
+    $repo = 0;
+    
     # does project have a : in it
     if ( index($project, ':') != -1 ) {
     	($repo, $project) = split(/\:/, $project);
     }
     
-    # default repo
-    unless ($repo) {
-    	$repo = $self->{modules}->{Dist}->{default};
-    }
     
     # give back an object
     return { 

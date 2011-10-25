@@ -653,6 +653,18 @@ sub add {
 }
 
 ##
+## @brief do add
+##
+sub do_add {
+	my ($self, $name, $config) = @_;
+
+	# save this dist
+	$self->{db}->set($name, $config);
+
+}
+
+
+##
 ## @brief connect to our rep
 ##
 sub init {

@@ -159,11 +159,26 @@ sub build {
 		# do we have a list of builds
 		if ( scalar(@{$builds}) > 0 && in_array(\@{$builds}, $key) == 0 ) { next; }
 		
+		# build
+		$b = $builds{$key};
+		
+		# check for dist set
+		if (exists($b->{dist})) {
+			$self->{drib}->{modules}->{Dist}->do_add($b->{dist}->{name}, $b->{dist});
+		}
+		
 		# loop through and install each package
-		foreach my $pkg ( @{$builds{$key}} ) {
-
-			# lets install our package
-			msg($self->{drib}->{modules}->{Create}->create($pkg->{pkg}, $opts)->{message});
+		foreach my $pkg ( @{$b->{packages}} ) {
+		
+			# create a package
+			if ($pkg->{do} eq "create") {			
+				msg($self->{drib}->{modules}->{Create}->create($pkg->{pkg}, $pkg)->{message});
+			}
+			
+			# install from dist
+			elsif ($pkg->{do} eq "install") {
+				msg($self->{drib}->{modules}->{Install}->install($pkg->{pkg}, $pkg)->{message});
+			}
 		
 		}	
 		
