@@ -99,7 +99,6 @@ sub connect {
 	
 		# key
 		$opts{'key_path'} = $self->{key};
-		$opts{'passphrase'} = "finger82";
 
 		# ssh 
 		$ssh = Net::OpenSSH->new(%opts);

@@ -38,7 +38,7 @@ sub new {
 		'port'		=> $config->{port} || 22,
 		'folder' 	=> trim($config->{folder})."/",
 		'key'		=> $config->{key},
-		'username'	=> $config->{username} || 0
+		'username'	=> $config->{username} || 0,
 		
 		# some params we need
 		'ssh'		=> 0,

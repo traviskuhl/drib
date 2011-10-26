@@ -319,13 +319,15 @@ sub dist {
 			my $d = -1;
 			
 			# give them optios
-			for ( $i = 0; $i <= length(@repos); $i++ ) {
+			for ( $i = 0; $i <= scalar(@repos); $i++ ) {
 			
 				# is it the default
 				$d = $i if ( $repos[$i] eq $self->{default} );
 			
 				# msg 
-				msg("   [$i] ".$repos[$i]);
+				if ($repos[$i]) {
+					msg("   [$i] ".$repos[$i]);
+				}
 				
 			}
 			
@@ -344,12 +346,18 @@ sub dist {
 		
 	# dist
 	my $dist;
+	
+	my $_repo = $self->{db}->get($repo);
 		
 	# has this dist already been created
 	unless ( exists($self->{clients}->{$repo}) ) {
 			
 		# we're going to need their password
-		my $pword = ask(" Password for ".$self->{db}->get($repo)->{name}.":", 1);
+		my $pword;	
+			
+			unless ( $_repo->{type} eq 'oauth' ) {
+				$pword = ask(" Password for ".$_repo->{name}.":", 1);
+			}
 			
 		# connect to our repo
 		$dist = $self->init($repo, $pword);		
@@ -551,6 +559,16 @@ sub add {
 		 	"questions" => [
 				{"text" => "Base Url:", "var" => "base"},
 				{"text" => "Folder Path Syntax [%project/%name-%version.tar]:", "var" => "path", "default" => "%project/%name-%version.tar.gz"},
+			],
+		},
+		"oauth" => {
+			"class" => "Drib::Dist::Oauth",		
+		 	"questions" => [
+		 		{"text" => "OAuth Key:", "var" => "key"},
+				{"text" => "OAuth Secret:", "var" => "secret"},
+				{"text" => "Check Url", "var" => "check_url"},
+				{"text" => "Get Url:", "var" => "get_url"},
+				{"text" => "Post Url:", "var" => "post_url"},				
 			],
 		}
 	);
