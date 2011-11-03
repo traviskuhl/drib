@@ -570,38 +570,68 @@ sub parsePackageName {
     my ($self, $name) = @_;
 
 	# things we're going to set at some point
-	my ($project, $version, $pkg, $repo);
-
-    # first explode for version
-    ($part, $version) = split(/-/,$name);
+	my ($full, $project, $version, $pkg, $repo);
+	
+	
+	# is there a -
+	if ($name =~ /\-(current|nightly|qa|stable|[0-9\.]+$)/) {
+	    # first explode for version
+	    my @parts = split(/-/,$name);	
+	    $version = pop(@parts);
+	    $part = join("-", @parts);
+	}
+	else {
+		$part = $name;
+	}
+	
 
     # now explode for the project and name
     ($project, $pkg) = split(/\//,$part);
 
-    # if no pkg, it must not have a project
-    if ( !$pkg ) {
-        $pkg = $project;
-        $project = 'default';
-    }
-    
-    # no repo
-    $repo = 0;
-    
     # does project have a : in it
     if ( index($project, ':') != -1 ) {
     	($repo, $project) = split(/\:/, $project);
     }
+
+    # if no pkg, it must not have a project
+    if ( !$pkg ) {
+        $pkg = $project;
+        $project = 0;
+    }
     
-    
+    	if ($repo) { $full .= "$repo:"; }
+    	if ($project) { $full .= "$project/"; }
+    	if ($pkg) { $full .= $pkg; }
+    	if ($version) { $full .= "-$version"; }
+        
     # give back an object
     return { 
-    	'full'		=> "$project/$pkg-$version", 
+    	'full'		=> $full, 
     	'name'		=> $pkg, 
     	'project'	=> $project, 
     	'version'	=> $version, 
     	'pid'		=> $self->getPid($project,$pkg),
     	'repo'		=> $repo
     };
+
+}
+
+##
+## @brief get a full name from package object
+##
+## @param $packageObject
+## @param $packagePid
+##
+sub getFullPackageName {
+	my ($self, $o, $pid) = @_;
+	
+		# no o
+		if ($pid) {
+			$o = $self->{packages}->get($pid);
+		}
+	
+	# return	
+	return $o->{meta}->{project}."/".$o->{meta}->{name};
 
 }
 

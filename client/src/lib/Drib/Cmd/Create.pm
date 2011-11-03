@@ -173,6 +173,14 @@ sub create {
 
 	# where are we now
 	my $pwd = getcwd();    		
+	
+		# no file
+		unless (-e $file) {
+			return {
+				'code' => 404,
+				'message' => "Could not find file"
+			};
+		}
 
 	# make sure we're in the correct folder
     my ($fname,$fpath) = fileparse($file);	

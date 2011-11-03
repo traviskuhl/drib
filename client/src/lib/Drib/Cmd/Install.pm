@@ -28,6 +28,7 @@ use LWP::Simple;
 
 # drib
 use Drib::Utils;
+use Drib::External;
 
 # new 
 sub new {
@@ -264,6 +265,14 @@ sub install {
         $pkg        = $p->{name};
         $version    = $p->{version} || ( $opts->{branch} || 'current' );
         $repo 		= $p->{repo} || ( $opts->{repo} || $self->{drib}->{commands}->{Dist}->{default} );       
+        
+        	# get external repos
+        	if ($repo && in_array(\@Drib::External::Repos, $repo)) {
+        		
+        		# get external repos
+				return Drib::External::_map($repo, $p->{name}, $p->{version}, $opts->{branch});
+        		
+        	}
     	    
     	# now we need to check with dist 
     	# to see if this package exists 
@@ -333,7 +342,7 @@ sub install {
 	}
 
 	# lets see if there are any depend
-	if ( $manifest->{depend} && $o_depend ) {
+	if ( $manifest->{depend} && $opts->{nodepend} != 1 ) {
 
 		# install
 		my @install = ();
@@ -346,7 +355,7 @@ sub install {
 			my $p = $self->{drib}->parsePackageName($item->{pkg});
 
 			# package
-			my $i = $drib->{packages}->get($p->{pid});
+			my $i = $self->{drib}->{packages}->get($p->{pid});	
 
 			# min and max
 			my $min = $item->{min} || 0;
@@ -384,16 +393,14 @@ sub install {
 			}
 			else {
 
+
 				# is there a version
 				if ( $ver == 0 ) {
 					$ver = $opts->{'branch'} || 'current';
 				}
 
-				# package name
-				my $pn = $p->{project} ."/" . $p->{name} . "-" . $ver;
-
 				# push to install
-				push(@install,$pn);
+				push(@install,$p->{full});
 
 			}
 
@@ -417,10 +424,10 @@ sub install {
 			chdir $start_pwd;
 			
 			# no depend
-			$opts->{depend} = 0;
+			$opts->{nodepend} = 1;
 
 			# now try reinstalling the package file
-			return $self->install($pkg_file, $opts);		
+			return $self->install($file, $opts);		
 
 		}
 

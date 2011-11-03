@@ -15,7 +15,7 @@ use Data::Dumper;
 
 # what we can export
 our @EXPORT = qw(
-    @PROJECTS
+    @Repos
 );
 
 # function map
@@ -26,8 +26,8 @@ my %mapper = (
   #  'cpan' => \&cpan
 );
 
-# projects
-our @PROJECTS = keys %mapper;
+# named preos
+our @Repos = keys %mapper;
 
 # go 
 sub _map {
@@ -61,7 +61,7 @@ sub yum {
     my $ver = shift;
     my $branch = shift;
 
-    print `sudo yum install $name --version=$ver`;
+    print `sudo yum install $name -y -q --skip-broke --nogpgcheck`;
 
 }
 
@@ -71,8 +71,10 @@ sub pecl {
     my $name = shift;
     my $ver = shift;
     my $branch = shift;
+    
+    	if ($ver) {$name .= "$ver";}
 
-    print `sudo pecl install $name-$ver`;
+    print `sudo pecl install $name`;
 
 }
 

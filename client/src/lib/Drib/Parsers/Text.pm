@@ -51,6 +51,33 @@ sub parse {
 	
 	# first pass at parsing
 	my $o = _parse($file);
+	
+		# include
+		my @inc = ();
+	
+		# if we have more stuff
+		# we should add it 
+		if (scalar(@{$o->{include}}) > 0) {
+			
+			# open the file and parse it 
+			foreach my $f (@{$o->{include}}) {
+				if (-e $f) {
+				
+					# get the file 
+					my $_o = _parse(file_get($f));
+					
+					# append anything 
+					foreach my $key (%{$_o->{vars}}) {
+						$o->{vars}{$key} = $_o->{vars}{$key};
+					}
+	
+					# for after second parse
+					push(@inc, $_o);
+					
+				}
+			}
+		
+		}
 
 	# replace vars
 	foreach my $key ( keys %{$o->{vars}}  ) {
@@ -66,8 +93,24 @@ sub parse {
 	$file = _replaceDefaults($file, $replace);
 	$file = _replaceDefaults($file, $o->{vars});
 
+	# fo
+	my $fo = _parse($file);
+	
+		# append anything 
+		if (scalar(@inc)) {
+			foreach my $_o (@inc) {
+			
+			
+				# set
+				foreach my $key (keys %{$_o->{set}}) {					
+					$fo->{set}->{$key} = $_o->{set}->{$key};					
+				}
+				
+			}
+		}
+
 	# reparse and return
-	return _parse($file);
+	return $fo;
 
 }
 
@@ -84,6 +127,8 @@ sub _parse {
 	my $Commands = 0;
 	my $Depend = 0;
 	my $Cron = 0;
+	my $Exec = 0;
+	my @include = ();
 	my %vars = ();
 
 	# split on new lines
@@ -258,6 +303,17 @@ sub _parse {
 			push(@$Cron,{'cmd'=>$mline});
 		
 		}
+
+		# exec
+		elsif ( $act =~ /exec/i ) {
+			
+			# zero
+			$Exec = [] if $Exec == 0;
+		
+			# add it 
+			push(@$Exec, $mline);
+		
+		}
 		
 		# var
 		elsif ( index($mline,'=') != -1 ) {
@@ -274,6 +330,15 @@ sub _parse {
 		
 		}
 		
+		# include
+		elsif ( $act =~ /\@include/i ) {
+			
+			# add it to the include vars
+			push(@include, $mline);  
+		
+		
+		}
+		
 	}
 
 	return {
@@ -284,7 +349,9 @@ sub _parse {
  		'cmd' 		=> $Commands,
 		'depend'	=> $Depend,
 		'cron'		=> $Cron,
-		'vars'		=> \%vars
+		'exec'		=> $Exec,
+		'vars'		=> \%vars,
+		'include'	=> \@include
 	};
 
 }

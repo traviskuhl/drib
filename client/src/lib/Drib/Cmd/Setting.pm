@@ -188,10 +188,13 @@ sub set {
 	# get the current list of settings
 	my $cur = $self->get($pid) || {};
 	
+	# num
+	my $i = 0;
+	
 	# loop and add
 	foreach my $key ( keys %$settings ) {
 		if ( $key ne "" ) {
-			$cur->{$key} = $settings->{$key};
+			$cur->{$key} = $settings->{$key}; $i++;
 		}
 	}
 
@@ -206,7 +209,7 @@ sub set {
 			
 	return {
 		'code' => 200,
-		'message' => "Settings updated"
+		'message' => "Updated $i settings for " . $self->{drib}->getFullPackageName(0,$pid)
 	};
 
 }

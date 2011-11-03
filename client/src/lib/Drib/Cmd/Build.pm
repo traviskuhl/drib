@@ -140,12 +140,14 @@ sub build {
 	if ( $build->{_config} ) {
 	
 		# root
-		my $resp = chdir $build->{_config}->{root} if $build->{_config}->{root};
-		
-			# nope
-			return {"message" => "Could not move into root directory" } unless $resp;
+		if ($build->{_config}->{root}) {
+			return {"message" => "Could not move into root directory" } unless chdir $build->{_config}->{root};
+		}
 	
 	}
+	
+	# where are we now
+	my $cwd = getcwd();	
 	
 	# builds
 	my %builds = %{$build};	
@@ -180,8 +182,30 @@ sub build {
 				msg($self->{drib}->{modules}->{Install}->install($pkg->{pkg}, $pkg)->{message});
 			}
 		
+			# move back in case they didn't
+			chdir($cwd);
+		
 		}	
 		
+		# see if there's a set
+		if (exists($b->{set})) {		
+			foreach my $name (keys %{$b->{set}}) {
+				
+				# parse the name for a pid
+				my $pkg = $self->{drib}->parsePackageName($name);				
+		
+					# if no we should skip
+					unless ($pkg) { next; }
+			
+				# send to settings				
+				msg($self->{drib}->{modules}->{Setting}->set($pkg->{pid}, $b->{set}->{$name})->{message});
+				
+			}
+		}
+		
 	}
+	
+	# move back
+	chdir($pwd);
 	
 }
