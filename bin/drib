@@ -1,0 +1,37 @@
+#!/usr/bin/perl
+#
+##########################
+##########################
+##           _      _ _     
+##          | |    (_) |    
+##        __| |_ __ _| |__  
+##       / _` | '__| | '_ \ 
+##      | (_| | |  | | |_) |  
+##       \__,_|_|  |_|_.__/ 
+##
+################################
+################################
+## (c) 2012 travis kuhl (kuhl.co) 
+##
+## This is free software. You may redistribute copies of it under the terms of
+## the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
+# #There is NO WARRANTY, to the extent permitted by law.
+##
+
+use Data::Dumper;
+
+# lib
+BEGIN {
+    use FindBin qw($Bin);
+    use lib "$Bin/../lib";   
+    $SIG{'__WARN__'} = sub { warn $ _[0] if $DOWARN } 
+}
+
+# use our class
+use drib;
+
+# start a new
+my $d = drib->new();
+
+# run
+$d->run();

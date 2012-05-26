@@ -1,0 +1,223 @@
+#!/usr/bin/perl
+##
+## (c) 2012 travis kuhl (kuhl.co) 
+##
+## This is free software. You may redistribute copies of it under the terms of
+## the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
+## There is NO WARRANTY, to the extent permitted by law.
+
+# depend
+my $depend = {
+    "LWP"                   => 0,
+    "Digest::SHA"           => 0,
+    "ExtUtils::MakeMaker"   => 0,
+    "JSON"                  => 0,
+    "HTTP::Request"         => 0,
+    "Module::Pluggable"		=> 0,
+    "Net::OpenSSH"			=> 0,
+    "Term::ReadKey"			=> 0,
+    "Text::Wrap"			=> 0,
+    "Data::Dumper"			=> 0
+};
+
+# start
+print "Starting...\n";
+
+# get opts
+use Getopt::Long;
+
+# test the cpan mods
+print "Testing for CPAN module…\n";
+
+# test
+eval("use CPAN");
+
+# if no try to install
+if ( $@ ) {
+    print "No CPAN module found. Try: perl -MCPAN -e 'install Bundle::CPAN'\n"; exit;
+}
+
+# cwd
+my $pwd = `pwd`;
+
+# cpan
+_setup_cpan();
+
+    # we need them to be using the correct 
+    # cpan version
+    if ( $CPAN::VERSION < 1.9402 ) {
+        
+        print ('-'x50)."\n";
+        print "Your version of CPAN (".$CPAN::VERSION.") is out-of-date.\n";
+        print "In order to continue, we're going to try updating it for you.\n";
+        print "A bunch of shit is going to scroll across the screen. Don't\n";
+        print "be alarmed. It's very normal. Don't take it personally. Should there\n";
+        print "be any problems, try installing manually using this commands:\n\n";
+        print "  perl -MCPAN -e 'install Bundle::CPAN'\n\n";
+        print "This process may take a few minutes.\n";        
+        print ('-'x50)."\n\n";
+
+        # install cpan
+        CPAN::Shell->install("CPAN");
+
+        print "\n".('-'x50)."\n";
+        print "CPAN upgrade complete.\nPlease run ./configure again!\n\n\n";
+
+        exit();
+    
+    }
+
+# checking
+print ('-'x50)."\n";
+print "\nChecking for required CPAN Modules...\n";
+
+# depend str
+my @_depend = ();
+
+# test the deps
+foreach my $mod ( keys %{$depend} ) {
+    
+    # test
+    eval("use $mod");
+
+    # if no try to install
+    if ( $@ ) {
+        CPAN::Shell->notest('install', $mod);
+    }
+
+    # add it
+    push(@_depend, "'$mod' => 0");
+    
+}
+
+# done
+print "CPAN check complete\n" . ('-'x50)."\n";
+
+# move back
+chdir($pwd);
+
+# make file
+print "Setting up make file...\n";
+
+# string
+my $dependstr = join(",", @_depend);
+
+# create our makefile.PL
+my $makefilepl = qq~
+use ExtUtils::MakeMaker;
+WriteMakefile(
+    NAME            => "by",
+    VERSION_FROM    => "lib/drib.pm",
+    PREREQ_PM       => {$dependstr},
+    PREREQ_FATAL    => 1,
+    INSTALLDIRS        => 'vendor',
+    PMLIBDIRS       => [qw(lib)],
+    EXE_FILES       => [qw(bin/drib)],
+    AUTHOR          => 'Travis Kuhl <travis@kuhl.co>',
+);
+~;
+
+# write the file
+open(MF,">Makefile.PL") || die "Could not write makefile\n";
+print MF $makefilepl;
+close(MF);
+
+# run it
+print `perl Makefile.PL`;
+
+# remove the file
+`rm Makefile.PL`;
+
+# and done
+print "Configuration complete! Time to run `make`\n";
+    
+# The Initial Developer of the Original Code is Everything Solved.
+# Portions created by Everything Solved are Copyright (C) 2006
+# Everything Solved. All Rights Reserved.
+sub _setup_cpan {
+
+    # cpan home
+    my $dir = $CPAN::Config->{cpan_home};    
+    
+        # need dir    
+        if (!defined $dir || !-w $dir) {
+            $dir = "$ENV{HOME}/.cpan";
+            mkdir $dir;    
+        }    
+    
+    # set 
+    $CPAN::Config->{cpan_home} = $dir;
+    $CPAN::Config->{build_dir} = "$dir/build";
+    $CPAN::Config->{keep_source_where} = "$dir/source";
+    $CPAN::Config->{inhibit_startup_message} = 1;
+    $CPAN::Config->{prerequisites_policy} = 'follow';
+    $CPAN::Config->{histfile} = "$dir/histfile";
+    $CPAN::Config->{use_sqlite} = 0;
+    $CPAN::Config->{prefs_dir} = "$dir/prefs";    
+    $CPAN::Config->{make_test} = "NO";
+    
+    # default
+    my $default = {
+        auto_commit => 0,
+        build_cache => 0,
+        build_requires_install_policy => 'yes',
+        cache_metadata => 1,
+        colorize_output => 1,
+        colorize_print => 'bold',
+        index_expire => 1,
+        scan_cache => 'atstart',
+        inhibit_startup_message => 1,
+        bzip2 => bin_loc('bzip2'),
+        curl => bin_loc('curl'),
+        gzip => bin_loc('gzip'),
+        links => bin_loc('links'),
+        lynx => bin_loc('lynx'),
+        make => bin_loc('make'),
+        pager => bin_loc('less'),
+        tar => bin_loc('tar'),
+        unzip => bin_loc('unzip'),
+        wget => bin_loc('wget'),
+        urllist => [qw(
+            http://www.cpan.org/
+            http://cpan.pair.com/
+            http://mirror.hiwaay.net/CPAN/
+            ftp://ftp.dc.aleron.net/pub/CPAN/
+            http://mirrors.kernel.org/cpan/
+            http://mirrors2.kernel.org/cpan/)]
+    };
+    
+    # loop
+    foreach my $key ( keys %{$default} ) {
+        $CPAN::Config->{$key} = $default->{$key};
+    }
+
+    my @missing;
+    # In newer CPANs, this is in HandleConfig. In older CPANs, it's in
+    # Config.
+    if (eval { require CPAN::HandleConfig }) {
+        @missing = CPAN::HandleConfig->missing_config_data;
+    }
+    else {
+        @missing = CPAN::Config->missing_config_data;
+    }
+
+    foreach my $key (@missing) {
+        $CPAN::Config->{$key} = '';
+    }
+        
+}
+
+
+# locate bin files
+sub bin_loc {
+    my ($bin) = @_;
+    open(my $saveerr, ">&STDERR");
+    open(STDERR, '>/dev/null');
+    my $loc = `which $bin`;
+    close(STDERR);
+    open(STDERR, ">&", $saveerr);
+    my $exit_code = $? >> 8; # See the perlvar manpage.
+    return '' if $exit_code > 0;
+    chomp($loc);
+    return $loc;
+}
