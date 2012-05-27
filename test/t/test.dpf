@@ -1,0 +1,38 @@
+
+# internal vars
+src = ./
+dest = /home/test/
+
+# meta data
+meta PROJECT = drib
+meta NAME = test
+meta VERSION = file:changelog
+meta SUMMARY = This is my summary
+meta DESCRIPTION = This is my long description
+meta CHANGELOG = changelog
+
+# depend
+depend test/test2 - -
+
+#set 
+set world yes
+set test hello
+
+# directory
+dir - - - /home/test 
+
+# file,find
+file - - - $(dest) ./test.html
+find - - - /home/test $(src) -depth -name "*.html" -or -name "*.conf"
+
+
+# settings file
+settings /home/test/ ./test.conf
+
+# cron
+cron 59 * * * * /home/bolt/libexec/platform/ingest/kickoff.php > /home/bolt/logs/platform/ingest/last.log
+
+# commands
+command pre-install echo 'hello'
+command post-install echo 'hello'
+command restart sudo /etc/init.d/httpd restart

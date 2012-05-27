@@ -24,7 +24,7 @@ use Data::Dumper;
 BEGIN {
     use FindBin qw($Bin);
     use lib "$Bin/../lib";   
-    $SIG{'__WARN__'} = sub { warn $ _[0] if $DOWARN } 
+  #  $SIG{'__WARN__'} = sub { warn $ _[0] if $DOWARN } 
 }
 
 # use our class

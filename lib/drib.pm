@@ -8,20 +8,42 @@ our $VERSION = "1.0";
 # get our plugins and modules
 use Module::Pluggable search_path => 'drib::cmd', sub_name => 'commands', require => 1;
 use Module::Pluggable search_path => 'drib::plugin', sub_name => 'plugins', require => 1;
+use Module::Pluggable search_path => 'drib::parser', sub_name => 'parsers', require => 1;
 
 # stuff to use
 use Getopt::Long qw(GetOptionsFromArray :config pass_through permute);
 use Data::Dumper;
 use Term::ReadKey;
 use Text::Wrap;
+use File::Temp qw/ tempfile tempdir /;
+
+# our own files
+use drib::util;
 
 ##
 ## @brief new instance
 ##
 sub new {
 	my ($class, @args) = @_;
-	my $self = {};
-	bless $self;
+	my $self = {
+        'config' => 0,
+        'util' => 0,
+        'user' => 0,
+        'tmp' => "/tmp/drib",
+        'argv' => ()
+    }; 
+
+    # bless
+    bless $self;
+
+    # user
+    $self->{user} = ($ENV{SUDO_USER} ? $ENV{SUDO_USER} : $ENV{USER});    
+
+    # temp dir
+    $self->{tmp} = tempdir( CLEANUP => 1 );
+
+    
+    # return a blessed class
 	return $self;
 }
 
@@ -57,6 +79,12 @@ sub run {
 	# cmd
 	my $cmd = lc(shift @ARGV);        
 
+    # arg
+    $self->{argv} = \@ARGV;
+
+    # log
+    $self->log("looking for cmd '$cmd'");
+
 	# loop through all of our commands
 	# and see if we match
     foreach my $class ($self->commands()) { 
@@ -65,7 +93,7 @@ sub run {
         my $name = $self->getNameFromClass($class);
         
         # tell them
-        $self->log("found command $class");
+        $self->log("found command '$class', with name '$name'");
         
         # if this command 
         if ($name eq $cmd) {
@@ -88,12 +116,61 @@ sub run {
 }
 
 ##
+## #brief util shortcut
+##
+sub util {
+    my $self = shift;
+
+    # if it doesn't already exits
+    unless ($self->{util}) {
+        $self->{util} = new drib::util($self);
+    }
+
+    # create
+    return $self->{util};
+
+}
+
+##
+## @brief get config folder
+##
+sub config {
+    my $self = shift;
+    my $folder = shift || "/var/drib/";
+
+    if ($self->{config}) {
+        return $self->{config};
+    }
+
+    # dir
+    unless ($dir) {
+    
+        # user
+        my $pw = getpwnam($self->{user});
+    
+        # var and config    
+        $dir = $pw->dir;
+        
+    }
+    
+    # dir
+    $self->{var} = $dir."/.drib/"; mkdir($self->{var});
+    
+
+    # open the config db
+    $self->{config} = new drib::db($dir, "config");
+
+    # return the db ref
+    return $self->{config};
+}
+
+##
 ## @brief show version number
 ##
 sub version {
 	my $self = shift;
 	$self->message("drib package manager - version ".$VERSION);
-	$self->message("copyright 2012 travis kuhl <travis@kuhl.co");
+	$self->message("copyright 2012 travis kuhl <travis\@kuhl.co>");
 }
 
 ##
@@ -149,6 +226,16 @@ sub file_put {
 
 }
 
+##
+## @brief trim slashes
+##
+sub slash_trim {
+    my $self = shift;
+    my $string = shift;
+    $string =~ s/^\/+//;
+    $string =~ s/\/$//;
+    return $string; 
+}
 
 ##
 ## @brief ask the user a question
@@ -201,6 +288,14 @@ sub ask_yn {
 sub message {
     my $self = shift;
     my $msg = shift;
+
+    # is it an array
+    if (ref($msg) eq "ARRAY") {
+        foreach my $m (@{$msg}) {
+            $self->message($m);
+        }
+        return;
+    }
 
     # get my termal size
     my ($wchar, $hchar, $wpixels, $hpixels) = GetTerminalSize();    

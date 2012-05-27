@@ -110,5 +110,17 @@ sub log {
 	return $self->drib->log(@_);
 }
 
+##
+## @brief make a path
+## 
+sub path {
+    my $self = shift;
+    my $parts = shift || [];
+    my @final = ();
+    foreach my $part (@{$parts}) {
+        push(@final, $self->drib->slash_trim($part));
+    }
+    return "/".join("/", @final)."/";
+}
 
 return 1;

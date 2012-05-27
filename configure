@@ -17,7 +17,8 @@ my $depend = {
     "Net::OpenSSH"			=> 0,
     "Term::ReadKey"			=> 0,
     "Text::Wrap"			=> 0,
-    "Data::Dumper"			=> 0
+    "Data::Dumper"			=> 0,
+    "Archive::Tar"          => 0
 };
 
 # start
