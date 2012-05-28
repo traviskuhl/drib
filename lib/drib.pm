@@ -43,7 +43,7 @@ sub new {
     $self->{user} = ($ENV{SUDO_USER} ? $ENV{SUDO_USER} : $ENV{USER});    
 
     # temp dir
-    $self->{tmp} = tempdir( CLEANUP => 1 );
+    $self->{tmp} = tempdir( CLEANUP => 0 );
 
     
     # return a blessed class

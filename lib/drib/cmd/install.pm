@@ -226,7 +226,7 @@ sub install {
 
 	# cleanup
 	if ($cleanup == 1) {
-		unlink($file);
+		`sudo rm -f $pwd/$file`;
 	}
 
 	# and DONE!

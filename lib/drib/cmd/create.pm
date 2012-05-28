@@ -369,7 +369,7 @@ sub create {
 
             # move the files into the correct place
             if (($type eq 'symlink' || $type eq "s") && $isSetting != 1) {
-                my $src = $self->drib->path([getcwd, $item->{src}]);
+                my $src = $self->drib->path(getcwd).$self->drib->slash_trim($item->{src});
                 symlink $src, $d;
             }
             else {
@@ -444,7 +444,7 @@ sub create {
     $self->log("  tar created '$tar'");
 
     # tar it up
-    my $r = Archive::Tar->create_archive($tar, COMPRESS_GZIP, split(/\n/, `find . -type d -or -name '.manifest'`));
+    my $r = Archive::Tar->create_archive($tar, COMPRESS_GZIP, split(/\n/, `find . -name '*'`));
 
     # make sure out tar is cool
     unless (-e $tar || $r == 0) {
