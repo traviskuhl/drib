@@ -213,7 +213,7 @@ sub install {
 	});
 
 	# ok we need to update the settings
-	$self->drib->cmd('settings')->set($pid, $manifest->{set});
+	$self->drib->cmd('settings')->set($pid, $manifest->{set}, 0, 0);
 
 	# and the settings files
 	$self->drib->cmd('settings')->files($pid, $manifest->{set_files});
