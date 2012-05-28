@@ -11,6 +11,8 @@ use Module::Pluggable search_path => 'drib::plugin', sub_name => 'plugins', requ
 use Module::Pluggable search_path => 'drib::parser', sub_name => 'parsers', require => 1;
 
 # stuff to use
+use POSIX;
+use User::pwent;
 use Getopt::Long qw(GetOptionsFromArray :config pass_through permute);
 use Data::Dumper;
 use Term::ReadKey;
@@ -19,6 +21,7 @@ use File::Temp qw/ tempfile tempdir /;
 
 # our own files
 use drib::util;
+use drib::packages;
 
 ##
 ## @brief new instance
@@ -69,7 +72,7 @@ sub run {
     ); 
     
     # get em
-    GetOptionsFromArray((\@ARGV, \%opts), ("plugins|p!","verbose|v","version","help|h","config=s"));
+    GetOptionsFromArray((\@ARGV, \%opts), ("plugins!","verbose","version","help|h","config=s"));
 
         # verbose
         if ($opts{verbose} == 1) {
@@ -79,8 +82,12 @@ sub run {
 	# cmd
 	my $cmd = lc(shift @ARGV);        
 
-    # arg
-    $self->{argv} = \@ARGV;
+        # globalize argv for later
+        foreach my $a (@ARGV) {
+            if (substr($a,0,1) ne '-') {
+                push(@{$self->{argv}}, $a);
+            }
+        }
 
     # log
     $self->log("looking for cmd '$cmd'");
@@ -97,6 +104,7 @@ sub run {
         
         # if this command 
         if ($name eq $cmd) {
+            $self->log("using class $class");            
             exit $class->new($self)->run();
         }
         
@@ -105,6 +113,7 @@ sub run {
             my $a = $class."::alias";
             foreach my $ac (@{&$a()}) {
             	if ($ac eq $cmd) {
+                    $self->log("using alias $ac -> $class");
                 	exit $class->new($self)->run();
                 }
             }
@@ -112,6 +121,58 @@ sub run {
 
     }
 
+    # version
+    $self->version();
+
+}
+
+##
+## @brief run a command
+##
+sub cmd {
+    my $self = shift;
+    my $cmd = shift;
+
+    # loop through all of our commands
+    # and see if we match
+    foreach my $class ($self->commands()) { 
+
+       # name
+        my $name = $self->getNameFromClass($class);
+        
+        # if this command 
+        if ($name eq $cmd) {
+            return $class->new($self);
+        }
+        
+        # alias
+        eval {
+            my $a = $class."::alias";
+            foreach my $ac (@{&$a()}) {
+                if ($ac eq $cmd) {
+                    return $class->new($self);
+                }
+            }
+        }     
+
+    }
+
+    # couldn't find command
+    return 0;
+
+}
+
+##
+## @brief package manager shortcut
+##
+sub packages {
+    my $self = shift;
+
+    unless ($self->{packages}) {
+        $self->{packages} = new drib::packages($self);
+    }
+
+    return $self->{packages};
 
 }
 
@@ -154,11 +215,11 @@ sub config {
     }
     
     # dir
-    $self->{var} = $dir."/.drib/"; mkdir($self->{var});
+    $self->{var} = $self->path($dir).".drib/"; mkdir($self->{var});
     
 
     # open the config db
-    $self->{config} = new drib::db($dir, "config");
+    $self->{config} = new drib::db($self->{var}, "config");
 
     # return the db ref
     return $self->{config};
@@ -374,6 +435,50 @@ sub in_array {
 sub dump {
     shift;
     print Dumper(@_); exit;
+}
+
+##
+## @brief compare two version numbers
+##
+# --- copied from: Sort::Versions    ---
+# --- below copyright applies to END ---
+#  Copyright (c) 1996, Kenneth J. Albanowski. All rights reserved.  This
+#  program is free software; you can redistribute it and/or modify it under
+#  the same terms as Perl itself.
+sub versioncmp {
+    my $self = shift;
+    my @A = ($_[0] =~ /([-.]|\d+|[^-.\d]+)/g);
+    my @B = ($_[1] =~ /([-.]|\d+|[^-.\d]+)/g);
+
+    my ($A, $B);
+    while (@A and @B) {
+    $A = shift @A;
+    $B = shift @B;
+    if ($A eq '-' and $B eq '-') {
+        next;
+    } elsif ( $A eq '-' ) {
+        return -1;
+    } elsif ( $B eq '-') {
+        return 1;
+    } elsif ($A eq '.' and $B eq '.') {
+        next;
+    } elsif ( $A eq '.' ) {
+        return -1;
+    } elsif ( $B eq '.' ) {
+        return 1;
+    } elsif ($A =~ /^\d+$/ and $B =~ /^\d+$/) {
+        if ($A =~ /^0/ || $B =~ /^0/) {
+        return $A cmp $B if $A cmp $B;
+        } else {
+        return $A <=> $B if $A <=> $B;
+        }
+    } else {
+        $A = uc $A;
+        $B = uc $B;
+        return $A cmp $B if $A cmp $B;
+    }   
+    }
+    @A <=> @B;
 }
 
 # all good

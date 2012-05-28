@@ -12,6 +12,7 @@ use File::Find;
 use File::Spec;
 use Cwd;
 use Archive::Tar;
+use JSON;
 
 ##
 ## @brief create 
@@ -39,7 +40,7 @@ sub new {
             	"install|i",
             	"dist|d=s",
             	"cleanup|c",
-                "type|t",
+                "type|t=s",
             	"var=s"
             ],
             'desc' => "Create a package",
@@ -62,7 +63,7 @@ sub cmd_create {
 	my $opts = shift || {};
 
 	# file
-	$opts->{file} = \@ARGV;
+	$opts->{file} = $self->drib->{argv};
 
 	# pwd
 	my $pwd = getcwd();
@@ -113,11 +114,9 @@ sub create {
 	my $install = $opts->{install} || 0;
 	my $cleanup = $opts->{cleanup} || 0;
     my $type = $opts->{type} || "release";
+    my $branch = $opts->{branch} || 'current';
 	my @vars = $opts->{vars} || ();
 	my $vars = {};
-
-    # some things we'll set 
-    my $branch = "release";
 
     # make sure we have a file
     if ($file eq "") {
@@ -165,6 +164,10 @@ sub create {
 
     # meta shortcut
     my $meta = $manifest->{meta};
+
+    # pkg & project
+    my $project = $meta->{project};
+    my $pkg = $meta->{name};
 
     $self->log("parsed manfiest file");
 
@@ -358,6 +361,12 @@ sub create {
                 $isSetting = 1;
             }
 
+            # make sure our dir exists
+            my $dir = dirname($d);
+
+            # make it 
+            `sudo mkdir -p $dir`;
+
             # move the files into the correct place
             if (($type eq 'symlink' || $type eq "s") && $isSetting != 1) {
                 my $src = $self->drib->path([getcwd, $item->{src}]);
@@ -397,43 +406,81 @@ sub create {
     # changelog
     my $changelog = (defined $manifest->{meta}->{changelog} ? $self->drib->file_get($manifest->{meta}->{changelog}) : "" );
         
+    # cleand
+    my @cleaned = map { s/$tmp//g; $_; } @files;
+
     # make our manifest
     my $buildManifest = {
-        'type' => $type,
+        'version' => $version,
+        'branch' => $branch,
+        'type' => substr($type, 0, 1),
         'project' => $meta->{project},
         'name' => $meta->{name},
         'meta' => $meta,
-        'set' => $meta->{set},
+        'set' => $manifest->{set},
         'set_files' => \@settings,
-        'crons' => $meta->{cron},
-        'commands' => $meta->{commands},
+        'crons' => $manifest->{cron},
+        'commands' => $manifest->{commands},
         'raw' => $manifest,
         'changelog' => $changelog,
-        'depend' => $meta->{depend},
+        'depend' => $manifest->{depend},
         'buildenv' => {
             'user' => $self->drib->{user},
             'host' => $ENV{'HOSTNAME'},
-            'pwd' => $ENV{'PWD'}
+            'pwd' => $pwd
         },
-        'files' => map { s/$tmp//g; $_; } @files
+        'files' => \@cleaned
     };
 
+    $self->log("  manifest created");
+
     # put our manifest into the file
-    $self->drib->file_put("./.manifest", to_json(buildManifest));
+    $self->drib->file_put("./.manifest", to_json($buildManifest));
 
     # name our package
-    my $name = "$pkg/$version"; my $tar = $name.".tar.gz";
+    my $name = "$pkg-$version"; my $tar = $name.".tar.gz";
+
+    # tar
+    $self->log("  tar created '$tar'");
 
     # tar it up
-    Archive::Tar->create_archive( $tar, COMPRESS_GZIP, [$tmp] );
+    my $r = Archive::Tar->create_archive($tar, COMPRESS_GZIP, split(/\n/, `find . -type d -or -name '.manifest'`));
 
     # make sure out tar is cool
-    unless ( -e $tar) {
+    unless (-e $tar || $r == 0) {
         return {
             "message" => "Unable to build package tar",
             "code" => 500
         }
     }
+
+    # move back
+    chdir($pwd);
+
+    # move file here
+    rename("$tmp/$tar", "./$tar");    
+
+    # install
+    if ($install) {
+
+        # tell them the package was create
+        $self->message("Package $project/$name was created.");        
+
+        # install
+        return $self->drib->cmd('install')->install({
+                'file' => "$tar",
+                'cleanup' => $cleanup
+            });
+    }
+
+
+    # done
+    return {
+        "code" => 200,
+        "message" => "Package $project/$name created",
+        "name" => $name,
+    }
+
 
 }
 

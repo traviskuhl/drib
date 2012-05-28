@@ -142,7 +142,7 @@ sub add {
     my @a = @{$self->{content}->{$ns}->{$var}};
     
     # push me on
-    unless ( in_array(\@a,$val)) {
+    unless ( $self->in_array(\@a,$val)) {
         push(@a,$val);
     }
     
@@ -170,6 +170,8 @@ sub load {
         unless ( -e $bk ) {
             `mkdir $bk`;
         }    
+
+#        print $file;
         
     # doesn't exist
     if ( -e $file ) {
@@ -258,6 +260,17 @@ sub file_put {
     print FH $content;
     close(FH);
 
+}
+
+##
+## @brief is a val in an array
+##
+sub in_array {
+    my ($self, $arr, $search_for) = @_;
+    foreach my $value (@$arr) {
+        return 1 if $value eq $search_for;
+    }
+    return 0;
 }
 
 1;
